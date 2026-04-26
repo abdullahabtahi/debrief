@@ -1,11 +1,12 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useSessionStore, Phase } from '@/stores/sessionStore'
 import { cn } from '@/lib/utils'
 import { SessionCodeBadge } from './SessionCodeBadge'
-import { CircleDot } from 'lucide-react'
+import { House } from 'lucide-react'
 
 const PHASES: { key: Phase; label: string; defaultSubView: string }[] = [
   { key: 'brief',   label: 'Brief',   defaultSubView: 'project' },
@@ -26,18 +27,28 @@ export function TopNav() {
   const sessionId      = useSessionStore((s) => s.activeSessionId)
   const isPhaseUnlocked = useSessionStore((s) => s.isPhaseUnlocked)
   const sessionTitle   = useSessionStore((s) => s.activeSessionTitle)
+  const sessionState   = useSessionStore((s) => s.sessionState)
   const activePhase    = activePhaseFromPath(pathname)
+
+  // Defer locked-state rendering to after client mount.
+  // Zustand persist reads localStorage — unavailable during SSR — which causes
+  // disabled={false} (client) vs disabled="" (server) hydration mismatch.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   const handlePhaseClick = (phase: Phase, defaultSubView: string) => {
     if (!isPhaseUnlocked(phase) || !sessionId) return
     router.push(`/session/${sessionId}/${phase}/${defaultSubView}`)
   }
 
-  let subTabs: { label: string; href: string; active: boolean }[] = []
+  const briefReady = ['brief_ready','pitch_recorded','qa_completed','debrief_ready','completed'].includes(sessionState)
+
+  let subTabs: { label: string; href: string; active: boolean; locked?: boolean }[] = []
   if (activePhase === 'brief' && sessionId) {
     subTabs = [
-      { label: 'Project Context',  href: `/session/${sessionId}/brief/project`,   active: pathname.includes('project') },
+      { label: 'Project Context',   href: `/session/${sessionId}/brief/project`,   active: pathname.includes('project')   },
       { label: 'Hackathon Context', href: `/session/${sessionId}/brief/hackathon`, active: pathname.includes('hackathon') },
+      { label: 'Judge Brief',       href: `/session/${sessionId}/brief/judge`,     active: pathname.includes('judge'),    locked: !briefReady },
     ]
   } else if (activePhase === 'room' && sessionId) {
     subTabs = [
@@ -64,7 +75,7 @@ export function TopNav() {
               className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors"
               title="Back to sessions"
             >
-              <CircleDot size={20} strokeWidth={2.5} />
+              <House size={20} strokeWidth={2} />
             </Link>
 
             {/* Session identity: project name or fallback */}
@@ -85,7 +96,8 @@ export function TopNav() {
         <div className="flex flex-col gap-6 mt-4">
           <div className="flex items-center gap-6 text-4xl font-bold tracking-tight">
             {PHASES.map(({ key, label, defaultSubView }) => {
-              const unlocked = isPhaseUnlocked(key)
+              // Before mount, treat all phases as unlocked to match SSR output
+              const unlocked = !mounted || isPhaseUnlocked(key)
               const isActive = activePhase === key
 
               return (
@@ -119,13 +131,17 @@ export function TopNav() {
                 <button
                   key={tab.label}
                   type="button"
-                  onClick={() => router.push(tab.href)}
+                  onClick={() => { if (!tab.locked) router.push(tab.href) }}
+                  disabled={tab.locked}
                   aria-current={tab.active ? 'page' : undefined}
+                  title={tab.locked ? 'Extract your brief first to unlock Judge Brief' : undefined}
                   className={cn(
                     'text-sm font-semibold transition-colors pb-3 -mb-[14px]',
                     tab.active
                       ? 'text-black border-b-2 border-black'
-                      : 'text-gray-500 hover:text-black border-b-2 border-transparent'
+                      : tab.locked
+                        ? 'text-gray-300 cursor-not-allowed border-b-2 border-transparent'
+                        : 'text-gray-500 hover:text-black border-b-2 border-transparent'
                   )}
                 >
                   {tab.label}

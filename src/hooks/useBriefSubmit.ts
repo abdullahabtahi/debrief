@@ -33,7 +33,7 @@ export function useBriefSubmit(sessionId: string): UseBriefSubmitReturn {
   const submit = async (): Promise<boolean> => {
     clearValidation()
 
-    const { projectName, projectContext, hackathonContext, pitchDeckGcs, notesGcs, hackathonGuidelinesGcs } =
+    const { projectName, projectContext, hackathonContext, pitchDeckGcs, notesGcs, hackathonGuidelinesUrl } =
       store.briefDraft
 
     const errors: ValidationErrors = { nameError: null, contextError: null }
@@ -63,7 +63,7 @@ export function useBriefSubmit(sessionId: string): UseBriefSubmitReturn {
           hackathon_context:        hackathonContext,
           pitch_deck_gcs:           pitchDeckGcs,
           notes_gcs:                notesGcs,
-          hackathon_guidelines_gcs: hackathonGuidelinesGcs,
+          hackathon_guidelines_url: hackathonGuidelinesUrl,
         }),
       })
 

@@ -55,16 +55,17 @@ export async function POST(req: Request) {
 
   const taskPayload = { session_id, pitch_recording_id }
 
-  const queueName    = process.env.CLOUD_TASKS_QUEUE_NAME
+  const queueName    = process.env.CLOUD_TASKS_TRANSCRIBE_QUEUE ?? process.env.CLOUD_TASKS_QUEUE_NAME
   const taskLocation = process.env.CLOUD_TASKS_LOCATION
   const gcpProject   = process.env.GOOGLE_CLOUD_PROJECT
-  const appUrl       = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const appUrl       = process.env.TASK_AUDIENCE ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
   if (queueName && taskLocation && gcpProject) {
     // Production: enqueue via Cloud Tasks
     const { CloudTasksClient } = await import('@google-cloud/tasks')
     const tasksClient = new CloudTasksClient()
     const parent = tasksClient.queuePath(gcpProject, taskLocation, queueName)
+    const taskSa = process.env.CLOUD_TASKS_SERVICE_ACCOUNT ?? `debrief-demo-room-live@${gcpProject}.iam.gserviceaccount.com`
 
     await tasksClient.createTask({
       parent,
@@ -75,7 +76,8 @@ export async function POST(req: Request) {
           headers: { 'Content-Type': 'application/json' },
           body: Buffer.from(JSON.stringify(taskPayload)).toString('base64'),
           oidcToken: {
-            serviceAccountEmail: process.env.CLOUD_TASKS_SERVICE_ACCOUNT,
+            serviceAccountEmail: taskSa,
+            audience: appUrl,
           },
         },
       },

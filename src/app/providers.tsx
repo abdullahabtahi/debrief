@@ -17,6 +17,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   )
 
+  // CopilotKit provider removed — was hammering AI Studio (depleted free-tier
+  // GEMINI_API_KEY) via GoogleGenerativeAIAdapter on every page load. Re-add
+  // <CopilotKit runtimeUrl="/api/copilotkit"> once a paid key is in place.
+
   return (
     <QueryClientProvider client={queryClient}>
       {children}

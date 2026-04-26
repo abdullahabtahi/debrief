@@ -22,7 +22,23 @@ export async function GET(
     )
   }
 
-  return NextResponse.json(data)
+  // Count Q&A turns for the most recent ended qa_session (used by DebriefTriggerCard)
+  const { count: qa_turn_count } = await supabase
+    .from('qa_sessions')
+    .select('id', { count: 'exact', head: true })
+    .eq('session_id', id)
+    .eq('status', 'ended')
+    .limit(1)
+    .then(async ({ data: qaSessions }) => {
+      if (!qaSessions?.length) return { count: 0 }
+      const qaId = (qaSessions as { id: string }[])[0].id
+      return supabase
+        .from('qa_turns')
+        .select('id', { count: 'exact', head: true })
+        .eq('qa_session_id', qaId)
+    })
+
+  return NextResponse.json({ ...data, qa_turn_count: qa_turn_count ?? 0 })
 }
 
 const PatchSchema = z.object({

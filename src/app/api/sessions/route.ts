@@ -2,9 +2,14 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { supabase } from '@/lib/supabase'
 import { generateSessionCode } from '@/lib/utils'
+import { rateLimit, getClientIp, tooManyRequests } from '@/lib/rateLimit'
 
 // POST /api/sessions — create a new session
-export async function POST() {
+export async function POST(req: Request) {
+  const ip = getClientIp(req)
+  const rl = rateLimit(`sessions-create:${ip}`, 5, 60) // 5 sessions / min / IP
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSec)
+
   // Attempt insert with collision retry (unique constraint on session_code)
   for (let attempt = 0; attempt < 2; attempt++) {
     const session_code = generateSessionCode()

@@ -12,9 +12,8 @@ interface TranscriptQuality {
 }
 
 const FILLER_WORDS = ['um', 'uh', 'like', 'you know']
-const STT_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 
-// mimeType → STT encoding mapping (spec table)
+// mimeType → STT encoding mapping — used as hint; v2 REST also accepts autoDecodingConfig
 function sttEncoding(mimeType: string): { encoding: string; sampleRateHertz: number } {
   if (mimeType.startsWith('video/mp4') || mimeType.startsWith('video/quicktime')) {
     return { encoding: 'MP4', sampleRateHertz: 16000 }
@@ -116,39 +115,60 @@ export async function transcribeInline(input: TranscribeInput): Promise<void> {
   let transcript = ''
 
   if (bucket && (apiKey || projectId)) {
-    // Real STT pipeline
+    // Real STT pipeline — uses Speech-to-Text v2 REST API via @google-cloud/vertexai auth
     try {
-      const { SpeechClient } = await import('@google-cloud/speech')
-      const speech = new SpeechClient()
       const gcsUri = recording.video_gcs
       if (!gcsUri) throw new Error('Missing video_gcs path')
 
       const { encoding, sampleRateHertz } = sttEncoding(recording.mime_type ?? '')
 
-      const [operation] = await speech.longRunningRecognize({
-        config: {
-          encoding:         encoding as Parameters<typeof speech.longRunningRecognize>[0]['config']['encoding'],
-          sampleRateHertz,
-          languageCode:     'en-US',
-          model:            'chirp_3',
-          enableWordTimeOffsets: false,
-        },
-        audio: { uri: gcsUri },
-      })
+      // Acquire an access token using Application Default Credentials
+      const { GoogleAuth } = await import('google-auth-library')
+      const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] })
+      const client = await auth.getClient()
+      const tokenResponse = await client.getAccessToken()
+      const accessToken = tokenResponse.token
+      if (!accessToken) throw new Error('Failed to acquire access token')
 
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('STT timeout')), STT_TIMEOUT_MS)
+      const project = projectId ?? process.env.GOOGLE_CLOUD_PROJECT
+      if (!project) throw new Error('Missing GOOGLE_CLOUD_PROJECT')
+
+      // STT v2 longrunningrecognize
+      const sttRes = await fetch(
+        `https://speech.googleapis.com/v2/projects/${project}/locations/global/recognizers/_:recognize`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            config: {
+              autoDecodingConfig: {},
+              languageCodes: ['en-US'],
+              model: 'chirp_3',
+            },
+            uri: gcsUri,
+          }),
+        }
       )
 
-      const [response] = await Promise.race([
-        operation.promise(),
-        timeoutPromise,
-      ]) as [Awaited<ReturnType<typeof operation.promise>>, never]
+      if (!sttRes.ok) {
+        const errText = await sttRes.text()
+        throw new Error(`STT HTTP ${sttRes.status}: ${errText}`)
+      }
 
-      transcript = (response.results ?? [])
+      // v2 respond with operation or inline results
+      const sttData = await sttRes.json() as {
+        results?: Array<{ alternatives?: Array<{ transcript?: string }> }>
+      }
+
+      transcript = (sttData.results ?? [])
         .map((r) => r.alternatives?.[0]?.transcript ?? '')
         .join(' ')
         .trim()
+
+      void encoding; void sampleRateHertz // used by sttEncoding above, kept for future v1 fallback
     } catch (err) {
       console.error('[transcribe] STT error:', err)
       await supabase

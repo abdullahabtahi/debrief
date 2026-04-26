@@ -31,7 +31,7 @@ export function ProjectBriefForm({ sessionId }: ProjectBriefFormProps) {
   // Determine if we are in an extracting state (from this page or navigated from hackathon page)
   const isBriefExtracting = useSessionStore((s) => s.isBriefExtracting)
   const isAnalyzing = status === 'analyzing' || isBriefExtracting
-  const isBriefReady = store.sessionState === 'brief_ready'
+  const isBriefReady = ['brief_ready', 'pitch_recorded', 'qa_completed', 'debrief_ready', 'completed'].includes(store.sessionState)
 
   // Sync name changes to store immediately (so hackathon page can read them for submission)
   useEffect(() => {

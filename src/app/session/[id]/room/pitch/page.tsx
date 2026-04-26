@@ -78,7 +78,10 @@ export default function PitchPage() {
       if (!res.ok) throw new Error('status fetch failed')
       return res.json() as Promise<PitchStatusData>
     },
-    enabled: !!sessionId && (!!pitchRecordingId || sessionState === 'pitch_recorded'),
+    enabled: !!sessionId && (
+      !!pitchRecordingId ||
+      ['pitch_recorded', 'qa_completed', 'debrief_ready', 'completed'].includes(sessionState)
+    ),
     refetchInterval: (query) => {
       const s = query.state.data?.status
       if (!s || s === 'ready' || s === 'failed') return false
@@ -460,7 +463,7 @@ export default function PitchPage() {
             >
               <button
                 type="button"
-                onClick={hasSeenCoachingTip ? handleGoToQA : () => setShowInterstitial(true)}
+                onClick={hasSeenCoachingTip || !statusData?.coaching_tip ? handleGoToQA : () => setShowInterstitial(true)}
                 className="flex items-center gap-2.5 px-8 py-4 rounded-full bg-black text-white font-semibold text-sm hover:bg-gray-800 transition-colors shadow-lg shadow-black/10"
               >
                 Go to Q&amp;A

@@ -1,0 +1,76 @@
+name: Deploy to Cloud Run
+
+# Manual trigger only — automatic deploy on every main push burns through
+# Cloud Run revisions and Vertex quota during a hackathon. Run from the
+# Actions tab when you actually want to ship.
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build + deploy to Cloud Run
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      id-token: write   # required for google-github-actions/auth via WIF
+
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      SERVICE: debrief-demo-room
+      SERVICE_ACCOUNT: ${{ vars.CLOUD_RUN_SERVICE_ACCOUNT }}
+      BUCKET: ${{ vars.GCS_BUCKET_NAME }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Workload Identity Federation — no JSON keys checked into secrets.
+      # See: https://github.com/google-github-actions/auth#setting-up-workload-identity-federation
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Resolve TASK_AUDIENCE (existing service URL or placeholder)
+        id: audience
+        run: |
+          URL=$(gcloud run services describe "$SERVICE" \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --format='value(status.url)' 2>/dev/null || echo '')
+          echo "url=${URL:-https://placeholder.example.com}" >> $GITHUB_OUTPUT
+          echo "first_deploy=$([ -z "$URL" ] && echo true || echo false)" >> $GITHUB_OUTPUT
+
+      - name: Deploy
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --source=. \
+            --region="$REGION" \
+            --project="$PROJECT_ID" \
+            --service-account="$SERVICE_ACCOUNT" \
+            --allow-unauthenticated \
+            --min-instances=1 \
+            --max-instances=10 \
+            --memory=2Gi \
+            --cpu=2 \
+            --cpu-boost \
+            --timeout=600 \
+            --concurrency=40 \
+            --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=true,GCS_BUCKET_NAME=${BUCKET},CLOUD_TASKS_BRIEF_QUEUE=brief-extraction,CLOUD_TASKS_TRANSCRIBE_QUEUE=transcribe,CLOUD_TASKS_LOCATION=${REGION},CLOUD_TASKS_SERVICE_ACCOUNT=${SERVICE_ACCOUNT},BRIEF_EXTRACTION_DEV_MODE=false,TASK_AUDIENCE=${{ steps.audience.outputs.url }},TASK_ALLOWED_SERVICE_ACCOUNTS=${SERVICE_ACCOUNT},NODE_ENV=production" \
+            --set-secrets="SUPABASE_URL=supabase-url:latest,SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key:latest,GEMINI_API_KEY=gemini-api-key:latest,GOOGLE_API_KEY=google-api-key:latest"
+
+      - name: Self-correct TASK_AUDIENCE on first deploy
+        if: steps.audience.outputs.first_deploy == 'true'
+        run: |
+          NEW_URL=$(gcloud run services describe "$SERVICE" \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --format='value(status.url)')
+          gcloud run services update "$SERVICE" \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --update-env-vars="TASK_AUDIENCE=${NEW_URL}"
+          echo "Deployed at: $NEW_URL"

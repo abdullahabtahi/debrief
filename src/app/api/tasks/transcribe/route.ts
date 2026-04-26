@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { transcribeInline } from '@/lib/transcribe'
+import { verifyCloudTasksOidc } from '@/lib/verifyOidc'
 
 const BodySchema = z.object({
   session_id:         z.string().uuid(),
@@ -12,18 +13,11 @@ const BodySchema = z.object({
 // In production, OIDC-verified via Authorization: Bearer <token>.
 // In dev, called directly via transcribeInline fire-and-forget.
 export async function POST(req: Request) {
-  // OIDC verification in production
+  // OIDC verification in production — fail-closed
   if (process.env.NODE_ENV === 'production') {
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: { code: 'UNAUTHORIZED', message: 'Missing Authorization header' } },
-        { status: 403 }
-      )
-    }
-    const token = authHeader.slice(7)
-    const verified = await verifyOidcToken(token)
-    if (!verified) {
+    const result = await verifyCloudTasksOidc(req.headers.get('Authorization'))
+    if (!result.ok) {
+      console.warn('[tasks/transcribe] OIDC reject:', result.reason)
       return NextResponse.json(
         { error: { code: 'UNAUTHORIZED', message: 'Invalid OIDC token' } },
         { status: 403 }
@@ -46,14 +40,4 @@ export async function POST(req: Request) {
   return NextResponse.json({ status: 'completed' })
 }
 
-async function verifyOidcToken(token: string): Promise<boolean> {
-  try {
-    const { OAuth2Client } = await import('google-auth-library')
-    const audience = process.env.NEXT_PUBLIC_APP_URL ?? ''
-    const client   = new OAuth2Client()
-    await client.verifyIdToken({ idToken: token, audience })
-    return true
-  } catch {
-    return false
-  }
-}
+

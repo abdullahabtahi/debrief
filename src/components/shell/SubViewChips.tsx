@@ -13,6 +13,7 @@ interface SubViewChip {
 const BRIEF_CHIPS: SubViewChip[] = [
   { key: 'project',   label: 'Project',   phase: 'brief' },
   { key: 'hackathon', label: 'Hackathon', phase: 'brief' },
+  { key: 'judge',     label: 'Judge Brief', phase: 'brief' },
 ]
 
 const ROOM_CHIPS: SubViewChip[] = [
@@ -56,10 +57,12 @@ export function SubViewChips({ phase, sessionId }: Props) {
     switch (sv) {
       case 'project':   return true
       case 'hackathon': return true
+      case 'judge':     return ['brief_ready','pitch_recorded','qa_completed','debrief_ready','completed'].includes(sessionState)
       case 'pitch':     return ['brief_ready','pitch_recorded','qa_completed','debrief_ready','completed'].includes(sessionState)
       case 'qa':        return ['pitch_recorded','qa_completed','debrief_ready','completed'].includes(sessionState)
       case 'review':    return ['qa_completed','debrief_ready','completed'].includes(sessionState)
       case 'coach':     return ['debrief_ready','completed'].includes(sessionState)
+      default:          return false
     }
   }
 

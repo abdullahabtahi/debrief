@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 const BodySchema = z.object({
   session_id: z.string().uuid(),
-  file_type: z.enum(['pitch_deck', 'notes', 'hackathon_guidelines']),
+  file_type: z.enum(['pitch_deck', 'notes']),
   content_type: z.literal('application/pdf'),
 })
 
@@ -26,8 +26,7 @@ export async function POST(req: Request) {
 
   // Dev mode fallback — GCS not configured
   if (!bucket) {
-    const folder = file_type === 'hackathon_guidelines' ? 'hackathon' : 'briefs'
-    const mockPath = `gs://dev-bucket/sessions/${session_id}/${folder}/${file_type}.pdf`
+    const mockPath = `gs://dev-bucket/sessions/${session_id}/briefs/${file_type}.pdf`
     return NextResponse.json({
       upload_url: null,
       gcs_path: mockPath,
@@ -38,9 +37,8 @@ export async function POST(req: Request) {
   // Production: generate V4 signed URL via Google Cloud Storage
   const { Storage } = await import('@google-cloud/storage')
   const storage = new Storage()
-  const folder   = file_type === 'hackathon_guidelines' ? 'hackathon' : 'briefs'
   const filename = `${file_type}-${Date.now()}.pdf`
-  const gcsPath  = `sessions/${session_id}/${folder}/${filename}`
+  const gcsPath  = `sessions/${session_id}/briefs/${filename}`
 
   const [url] = await storage
     .bucket(bucket)

@@ -16,6 +16,7 @@ export type Phase = 'brief' | 'room' | 'debrief'
 export type SubView =
   | 'project'        // brief/project
   | 'hackathon'      // brief/hackathon
+  | 'judge'          // brief/judge
   | 'pitch'          // room/pitch
   | 'qa'             // room/qa
   | 'review'         // debrief/review
@@ -46,8 +47,7 @@ export interface BriefDraft {
   notesGcs: string | null
   pitchDeckFilename: string | null
   notesFilename: string | null
-  hackathonGuidelinesGcs: string | null
-  hackathonGuidelinesFilename: string | null
+  hackathonGuidelinesUrl: string | null
 }
 
 interface SessionStore {
@@ -59,6 +59,9 @@ interface SessionStore {
   hasSeenOnboarding: boolean
   hasSeenCoachingTip: boolean
   activeSubView: SubView
+  /** Per-session draft storage — keyed by session ID (source of truth) */
+  briefDrafts: Record<string, BriefDraft>
+  /** Active session's draft — always synced from briefDrafts on session switch */
   briefDraft: BriefDraft
   recentSessions: RecentSession[]
   isBriefExtracting: boolean
@@ -81,6 +84,19 @@ interface SessionStore {
   // Derived
   isPhaseUnlocked: (phase: Phase) => boolean
   currentCTA: () => CTA
+}
+
+// ── Constants ──────────────────────────────────────────────────────────────
+
+const EMPTY_DRAFT: BriefDraft = {
+  projectName: '',
+  projectContext: '',
+  hackathonContext: '',
+  pitchDeckGcs: null,
+  notesGcs: null,
+  pitchDeckFilename: null,
+  notesFilename: null,
+  hackathonGuidelinesUrl: null,
 }
 
 // ── Store ──────────────────────────────────────────────────────────────────
@@ -110,17 +126,8 @@ export const useSessionStore = create<SessionStore>()(
       activeSubView: 'project',
       recentSessions: [],
       isBriefExtracting: false,
-      briefDraft: {
-        projectName: '',
-        projectContext: '',
-        hackathonContext: '',
-        pitchDeckGcs: null,
-        notesGcs: null,
-        pitchDeckFilename: null,
-        notesFilename: null,
-        hackathonGuidelinesGcs: null,
-        hackathonGuidelinesFilename: null,
-      },
+      briefDrafts: {},
+      briefDraft: { ...EMPTY_DRAFT },
 
       // setSession — use only for brand-new sessions (always resets to draft)
       setSession: (id, code) => {
@@ -136,6 +143,11 @@ export const useSessionStore = create<SessionStore>()(
           sessionCode: code,
           sessionState: 'draft',
           activeSessionTitle: null,
+          // Load this session's draft (or empty if new) and persist the slot
+          briefDraft: s.briefDrafts[id] ?? { ...EMPTY_DRAFT },
+          briefDrafts: s.briefDrafts[id]
+            ? s.briefDrafts
+            : { ...s.briefDrafts, [id]: { ...EMPTY_DRAFT } },
           recentSessions: [
             newEntry,
             ...s.recentSessions.filter((r) => r.id !== id),
@@ -150,20 +162,29 @@ export const useSessionStore = create<SessionStore>()(
           sessionCode: code,
           sessionState: state,
           activeSessionTitle: title ?? s.recentSessions.find((r) => r.id === id)?.title ?? null,
+          // Restore this session's draft — critical for isolation
+          briefDraft: s.briefDrafts[id] ?? { ...EMPTY_DRAFT },
+          briefDrafts: s.briefDrafts[id]
+            ? s.briefDrafts
+            : { ...s.briefDrafts, [id]: { ...EMPTY_DRAFT } },
           recentSessions: s.recentSessions.map((r) =>
             r.id === id ? { ...r, state, lastActiveAt: Date.now() } : r
           ),
         })),
 
       setSessionState: (state) =>
-        set((s) => ({
-          sessionState: state,
-          recentSessions: s.recentSessions.map((r) =>
-            r.id === s.activeSessionId
-              ? { ...r, state, lastActiveAt: Date.now() }
-              : r
-          ),
-        })),
+        set((s) => {
+          // State machine is forward-only — never regress
+          if (!stateGte(state, s.sessionState)) return {}
+          return {
+            sessionState: state,
+            recentSessions: s.recentSessions.map((r) =>
+              r.id === s.activeSessionId
+                ? { ...r, state, lastActiveAt: Date.now() }
+                : r
+            ),
+          }
+        }),
 
       setActiveSubView: (view) =>
         set({ activeSubView: view }),
@@ -178,7 +199,15 @@ export const useSessionStore = create<SessionStore>()(
         set({ hasSeenCoachingTip: false }),
 
       setBriefDraft: (draft) =>
-        set((s) => ({ briefDraft: { ...s.briefDraft, ...draft } })),
+        set((s) => {
+          const id = s.activeSessionId
+          if (!id) return {}
+          const updated = { ...(s.briefDrafts[id] ?? s.briefDraft), ...draft }
+          return {
+            briefDraft: updated,
+            briefDrafts: { ...s.briefDrafts, [id]: updated },
+          }
+        }),
 
       setIsBriefExtracting: (v) =>
         set({ isBriefExtracting: v }),
@@ -193,17 +222,7 @@ export const useSessionStore = create<SessionStore>()(
           hasSeenCoachingTip: false,
           activeSubView: 'project',
           isBriefExtracting: false,
-          briefDraft: {
-            projectName: '',
-            projectContext: '',
-            hackathonContext: '',
-            pitchDeckGcs: null,
-            notesGcs: null,
-            pitchDeckFilename: null,
-            notesFilename: null,
-            hackathonGuidelinesGcs: null,
-            hackathonGuidelinesFilename: null,
-          },
+          // Keep briefDrafts intact so returning users recover their work
         }),
 
       setActiveSessionTitle: (title) =>
@@ -282,6 +301,7 @@ export const useSessionStore = create<SessionStore>()(
         hasSeenOnboarding: state.hasSeenOnboarding,
         activeSubView: state.activeSubView,
         briefDraft: state.briefDraft,
+        briefDrafts: state.briefDrafts,
         recentSessions: state.recentSessions,
         isBriefExtracting: state.isBriefExtracting,
         hasSeenCoachingTip: state.hasSeenCoachingTip,

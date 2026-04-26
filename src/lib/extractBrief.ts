@@ -6,7 +6,7 @@ interface ExtractionInput {
   hackathon_brief_id: string
   project_context: string
   hackathon_context: string
-  hackathon_guidelines_gcs: string | null
+  hackathon_guidelines_url: string | null
 }
 
 interface ProjectBriefSummary {
@@ -16,6 +16,10 @@ interface ProjectBriefSummary {
   key_differentiator: string
   tech_stack_hint: string
   team_size_hint: string
+  data_strategy: string
+  competitive_moat: string
+  market_validation: string
+  failure_modes: string
 }
 
 interface HackathonBriefSummary {
@@ -29,18 +33,17 @@ interface HackathonBriefSummary {
 // extractBriefInline — called in dev mode or when Cloud Tasks not configured.
 // Calls Gemini Flash directly and writes results to Supabase.
 export async function extractBriefInline(input: ExtractionInput): Promise<void> {
-  const { session_id, project_brief_id, hackathon_brief_id, project_context, hackathon_context, hackathon_guidelines_gcs } = input
+  const { session_id, project_brief_id, hackathon_brief_id, project_context, hackathon_context, hackathon_guidelines_url } = input
 
-  const apiKey = process.env.VERTEX_AI_API_KEY
   const projectId = process.env.GOOGLE_CLOUD_PROJECT
-  const location = process.env.GOOGLE_CLOUD_LOCATION ?? 'us-central1'
+  const location = process.env.GOOGLE_CLOUD_LOCATION ?? 'global'
 
   let projectSummary: ProjectBriefSummary
   let hackathonSummary: HackathonBriefSummary
 
-  if (apiKey || projectId) {
-    // Call Gemini Flash via Vertex AI
-    const result = await callGeminiFlash({ project_context, hackathon_context, hackathon_guidelines_gcs, apiKey, projectId, location })
+  if (projectId) {
+    // Call Gemini 3 Flash via Vertex AI
+    const result = await callGeminiFlash({ project_context, hackathon_context, hackathon_guidelines_url, projectId, location })
     projectSummary = result.project
     hackathonSummary = result.hackathon
   } else {
@@ -85,18 +88,19 @@ export async function extractBriefInline(input: ExtractionInput): Promise<void> 
 async function callGeminiFlash(opts: {
   project_context: string
   hackathon_context: string
-  hackathon_guidelines_gcs: string | null
-  apiKey?: string
-  projectId?: string
+  hackathon_guidelines_url: string | null
+  projectId: string
   location: string
 }): Promise<{ project: ProjectBriefSummary; hackathon: HackathonBriefSummary }> {
-  const { project_context, hackathon_context, hackathon_guidelines_gcs, apiKey, projectId, location } = opts
+  const { project_context, hackathon_context, hackathon_guidelines_url, projectId, location } = opts
 
-  const guidelinesNote = hackathon_guidelines_gcs
-    ? `\nHACKATHON GUIDELINES PDF: A PDF document with the full event guidelines has been provided (${hackathon_guidelines_gcs}). Extract judging criteria, constraints, and prizes from it — weight this over the text context if they conflict.`
+  const guidelinesNote = hackathon_guidelines_url
+    ? `\nHACKATHON GUIDELINES URL: The official hackathon page/rubric is available at ${hackathon_guidelines_url}. Extract judging criteria, constraints, and prizes from it — weight this over the text context if they conflict.`
     : ''
 
-  const prompt = `You are a pitch analyst. Extract structured data from the founder's raw context.
+  const prompt = `You are a strict, adversarial VC judge analyst preparing a briefing document for a panel of judges.
+
+Your goal is to synthesize the founder's raw context into a sharp, judge-facing summary. DO NOT just extract what they said—synthesize what a sharp judge needs to know to probe effectively (including spotting glaring omissions).
 
 PROJECT CONTEXT:
 ${project_context}
@@ -112,7 +116,11 @@ Respond with ONLY valid JSON in this exact shape:
     "target_user": "who benefits from this",
     "key_differentiator": "what makes this unique",
     "tech_stack_hint": "tech stack if mentioned, else empty string",
-    "team_size_hint": "team size if mentioned, else empty string"
+    "team_size_hint": "team size if mentioned, else empty string",
+    "data_strategy": "Where does the data come from? What's the feedback loop? If missing entirely, state 'MISSING - Critical vulnerability line of questioning'",
+    "competitive_moat": "What stops incumbents from copying this? If not obvious, state 'VULNERABLE - No obvious moat'",
+    "market_validation": "Is there any evidence this is wanted (traction/users/interviews)? If none, state 'UNVALIDATED - Pure hypothesis'",
+    "failure_modes": "What happens when the model/system is wrong? Failure mitigation? If missing, state 'UNADDRESSED - Probe on error handling/trust'"
   },
   "hackathon": {
     "event_name": "name of the hackathon if mentioned, else empty string",
@@ -123,31 +131,16 @@ Respond with ONLY valid JSON in this exact shape:
   }
 }`
 
-  let responseText: string
-
-  if (apiKey) {
-    // Gemini via API key (simpler, works without full GCP setup)
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json' },
-        }),
-      }
-    )
-    const data = await res.json()
-    responseText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
-  } else {
-    // Vertex AI via Application Default Credentials
-    const { VertexAI } = await import('@google-cloud/vertexai')
-    const vertex = new VertexAI({ project: projectId!, location })
-    const model = vertex.getGenerativeModel({ model: 'gemini-2.0-flash' })
-    const result = await model.generateContent(prompt)
-    responseText = result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
-  }
+  // Vertex AI via Application Default Credentials
+  const { GoogleGenAI } = await import('@google/genai')
+  const ai = new GoogleGenAI({ vertexai: true, project: projectId, location })
+  const result = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: prompt,
+    config: { responseMimeType: 'application/json' },
+  })
+  
+  const responseText = result.text ?? '{}'
 
   // Strip markdown fences if present
   const cleaned = responseText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim()
@@ -166,6 +159,10 @@ function stubExtractProject(context: string): ProjectBriefSummary {
     key_differentiator: 'AI-powered, adversarial rehearsal environment.',
     tech_stack_hint:    '',
     team_size_hint:     '',
+    data_strategy:      'Synthetic data generated by AI.',
+    competitive_moat:   'First mover in adversarial pitch practice.',
+    market_validation:  'Waitlist of 500 founders.',
+    failure_modes:      'AI hallucinations causing bad advice.',
   }
 }
 

@@ -7,7 +7,6 @@ import { useSessionStore } from '@/stores/sessionStore'
 import { useBriefSubmit } from '@/hooks/useBriefSubmit'
 import { BriefStepIndicator } from './BriefStepIndicator'
 import { ExtractionProgress } from './ExtractionProgress'
-import { PDFUploadZone } from './PDFUploadZone'
 import { CTAButton } from '@/components/shell/CTAButton'
 
 interface HackathonBriefFormProps {
@@ -20,12 +19,18 @@ export function HackathonBriefForm({ sessionId }: HackathonBriefFormProps) {
   const { submit, status, setStatus, validation } = useBriefSubmit(sessionId)
 
   const [localContext, setLocalContext] = useState(store.briefDraft.hackathonContext)
+  const [localUrl, setLocalUrl] = useState(store.briefDraft.hackathonGuidelinesUrl ?? '')
 
-  // Keep store in sync so ProjectBriefForm can also read hackathon context
+  // Keep store in sync
   useEffect(() => {
     store.setBriefDraft({ hackathonContext: localContext })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localContext])
+
+  useEffect(() => {
+    store.setBriefDraft({ hackathonGuidelinesUrl: localUrl.trim() || null })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localUrl])
 
   const handleSubmit = async () => {
     const ok = await submit()
@@ -98,25 +103,21 @@ export function HackathonBriefForm({ sessionId }: HackathonBriefFormProps) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-800 flex items-center justify-between">
-          Event guidelines PDF
+        <label htmlFor="hackathon-url" className="text-sm font-semibold text-gray-800 flex items-center justify-between">
+          Event guidelines URL
           <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Optional</span>
         </label>
-        <PDFUploadZone
-          label="Hackathon Guidelines"
-          sessionId={sessionId}
-          fileType="hackathon_guidelines"
-          currentGcsPath={store.briefDraft.hackathonGuidelinesGcs}
-          currentFilename={store.briefDraft.hackathonGuidelinesFilename}
-          onUploadComplete={(path, filename) => {
-            store.setBriefDraft({ hackathonGuidelinesGcs: path, hackathonGuidelinesFilename: filename })
-          }}
-          onRemove={() => {
-            store.setBriefDraft({ hackathonGuidelinesGcs: null, hackathonGuidelinesFilename: null })
-          }}
+        <input
+          id="hackathon-url"
+          type="url"
+          value={localUrl}
+          onChange={(e) => setLocalUrl(e.target.value)}
+          placeholder="https://devpost.com/software/... or event landing page"
+          disabled={isDisabled}
+          className="w-full rounded-2xl border border-gray-200 bg-gray-50/50 px-5 py-4 text-[15px] text-gray-800 placeholder:text-gray-400 focus:border-black focus:bg-white focus:ring-1 focus:ring-black outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50"
         />
         <p className="text-xs text-gray-400 leading-relaxed">
-          Upload the official event brief or rubric. The judges will use it to calibrate what this room actually rewards.
+          Paste the Devpost or event page URL. The judges will use it to calibrate what this room actually rewards.
         </p>
       </div>
 
