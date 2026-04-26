@@ -1,0 +1,251 @@
+# Product Summary
+
+## Overview
+This product is a desktop web app for hackathon founders preparing for high-stakes demo day pitches. It is not a general startup planning tool, CRM, or productivity dashboard. It is a focused rehearsal system for turning a rough project into a compelling pitch, pressure-testing it through adversarial Q&A, and generating a structured post-mortem for iteration.
+
+The core product loop is:
+1. Prepare the context.
+2. Perform the pitch.
+3. Survive the Q&A.
+4. Review what broke.
+5. Improve and retry.
+
+The product should feel:
+- Institutional
+- Calm but high-stakes
+- Analytical
+- Credible
+- Founder-grade
+- Minimal, not flashy
+- More like a serious review room than a generic AI chatbot app.
+
+## Core User
+The primary user is a hackathon founder who has already built something quickly and now needs help with:
+- clarifying the idea,
+- tailoring the pitch to the event,
+- practicing delivery,
+- surviving judge questions,
+- and understanding how to improve before the final presentation.
+
+## Core Value Proposition
+The app helps founders rehearse demo day in a realistic workflow:
+- capture project and hackathon context,
+- record an opening pitch,
+- enter a live-room style Q&A experience,
+- receive a structured review,
+- and continue learning through a follow-up coach interface.
+
+This app is not about generating a pitch from scratch. It is about pressure-testing a pitch.
+
+## Product Principles
+- The workflow is narrow and opinionated.
+- Primary navigation reflects phases, not features.
+- The Room is the emotional center of the app.
+- The Debrief is the main value artifact.
+- Analytics and session history are secondary utility views, not part of the main journey.
+- Avoid generic dashboard clutter and neon AI aesthetics.
+
+## Primary Navigation
+Top-level horizontal navigation:
+- Brief
+- Room
+- Debrief
+
+Utility access:
+- Sessions
+- Analytics
+
+The first row represents product phases.
+The second row represents the active sub-view within the current phase.[file:210]
+
+---
+
+# Screen Inventory
+
+## 1. Brief
+Purpose: collect the minimum context needed to make the rehearsal and debrief relevant.
+
+### 1.1 Project Context
+Purpose:
+- capture the startup idea and narrative foundation.
+
+Key content:
+- user copy and paste into text box for the its project context
+- upload PDF for pitch deck
+- upload notes 
+
+Expected outcome:
+- a structured project brief object that can be used downstream in the Room and Debrief phases.
+
+### 1.2 Hackathon Context
+Purpose:
+- capture event-specific framing so the pitch and evaluation are grounded in the actual judging environment.
+
+Key content:
+- user copy and paste the hackathon guidelines into text box
+
+ ## 2. Room
+Purpose: simulate the actual performance environment where the founder presents and responds under pressure.[page:211]
+
+This phase is sequential:
+1. Pitch
+2. Q&A
+
+### 2.1 Pitch
+Purpose:
+- record the founder’s opening pitch before live questioning.
+
+Key content / functionality:
+- video or audio recording interface
+- visible timer
+- clear prompt to deliver the opening pitch
+- minimal distractions
+- strong primary CTA to lock the recording and move forward
+
+Expected outcome:
+- a pitch recording artifact
+- optional transcript / summary for downstream review
+
+### 2.2 Q&A (Gemini Live Agent)
+Purpose:
+- simulate a live-room style adversarial questioning session with AI judge personas.
+
+Key content / functionality:
+- Zoom-like room layout
+- founder video as dominant stage
+- judge personas in smaller tiles
+- active speaker state
+- session timer
+- transcript / turn capture
+- familiar but cinematic room feel
+- minimal clutter
+
+Expected outcome:
+- a Q&A transcript or structured turn log
+- evidence for narrative gaps, delivery weaknesses, and response quality
+
+---
+
+## 3. Debrief (Opus 4.7 Agnet)
+Purpose: turn the pitch and Q&A session into a structured post-mortem and coaching loop.
+
+### 3.1 Review
+Purpose:
+- present the main post-session artifact.
+
+Key content: (SUBJECT FOR REFINEMENT & BRAINSTORMING)
+- overall verdict
+- fracture map
+- strengths
+- weaknesses
+- narrative issues
+- delivery issues
+- Q&A vulnerabilities
+- suggested next drill / next iteration
+
+Expected outcome:
+- a structured review artifact that feels high-value and shareable
+
+Important note:
+- this is the hero artifact of the product
+- the UI should make this screen feel more important than analytics or forms
+
+### 3.2 Coach
+Purpose:
+- allow the founder to interact with the post-mortem, ask follow-up questions, and go deeper on how to improve.
+
+Key content / functionality:
+- conversational interface
+- uses context from the project brief, hackathon brief, pitch, Q&A, and review
+- supports follow-up coaching and clarification
+- should feel like a post-session critique room, not a generic chatbot
+
+Expected outcome:
+- actionable improvement guidance
+- better interpretation of the debrief
+- continuity into another practice round
+
+---
+
+# Utility Views
+
+## Sessions
+Purpose:
+- let users revisit previous rehearsal sessions.
+
+Possible content:
+- session list
+- date / title
+- brief summary
+- status
+- link to review artifact
+
+## Analytics
+Purpose:
+- provide supporting metrics and longitudinal feedback.
+
+Possible content:
+- delivery trends
+- session frequency
+- repeated failure points
+- improvement over time
+
+Important note:
+- these are secondary views
+- they should not interrupt the main Brief → Room → Debrief journey
+
+---
+
+# UX Direction
+
+## Information Architecture
+- Primary nav = phases
+- Secondary nav = tasks within a phase
+- Utility nav = cross-cutting reference views
+
+## Visual Tone
+- restrained
+- institutional
+- intelligent
+- soft neutral palette
+- structured cards
+- minimal ornamentation
+- dark mode may be explored later, but current direction is calm, polished, and review-oriented based on the selected reference screens.
+
+## Interaction Principles
+- every screen should have one dominant next action
+- transitions should reinforce the product journey
+- Q&A should only unlock after Pitch is completed
+- Debrief should only unlock after Room is completed
+- the product should always feel like it is moving the founder toward a stronger next attempt
+
+---
+
+# Non-Goals
+
+This product is not:
+- a CRM
+- an investor database
+- a startup planning suite
+- a project management tool
+- a general AI note-taking app
+- a broad analytics dashboard
+
+It should remain tightly focused on founder rehearsal for demo day.
+
+---
+
+# Build Priorities
+
+Order of implementation:
+1. App shell and navigation
+2. Brief screens
+3. Pitch recording
+4. Q&A room
+5. Debrief review
+6. Coach
+7. Sessions
+8. Analytics
+
+The product should be built around the shortest convincing end-to-end loop first.
+

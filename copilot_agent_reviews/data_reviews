@@ -1,0 +1,128 @@
+Schema Audit — Demo Day Room
+The schema from CLAUDE.md for reference:
+
+🔴 Structural Breaks — Wrong data or lost data at runtime
+1. project_briefs and hackathon_briefs have no is_active or created_at
+
+The brief re-submission flow (FR-BRIEF-06, NFR-BRIEF-03) creates new rows on each submit and marks old ones status = 'superseded'. But there is no is_active flag and no created_at timestamp on either table.
+
+The Debrief agent's MCP tool get_project_brief must return the "current" brief. Without is_active or a timestamp, the query is ORDER BY created_at DESC LIMIT 1 — but created_at doesn't exist. The tool has no deterministic way to find the right row.
+
+Fix:
+
+2. qa_turns uses a plain INDEX, not UNIQUE INDEX
+
+The schema comment shows -- INDEX (qa_session_id, sequence_number). But sequence_number is client-incremented and turn writes are fire-and-forget with 3 retries. If the original request was slow (not failed) and a retry also succeeds, you get two rows with sequence_number = 5 for the same qa_session_id.
+
+The Debrief agent reads all turns IN ORDER to generate the fracture map. Duplicate turns = doubled evidence = skewed scores.
+
+Fix:
+
+3. debriefs has no FK to qa_sessions
+
+The Debrief agent's MCP tool get_qa_turns takes session_id — but a session can have multiple qa_sessions (started, abandoned via Cloud Scheduler → status = 'abandoned', started again). When the MCP tool queries turns for a session, it must decide which qa_session to use.
+
+There is no FK on debriefs pointing to which qa_session was used to generate it. This means:
+
+The MCP tool must guess (probably "latest non-abandoned qa_session")
+If the founder abandoned Q&A and started again, the debrief may pull turns from the abandoned session
+Fix:
+
+Set this when creating the debriefs record at stream-start time. The agent then knows exactly which turns to read.
+
+4. coach_messages has no FK to debriefs
+
+The Coach conversation is grounded in a specific debrief. The founder can re-run the debrief (FR-DEBRIEF-09), creating a new debriefs record with attempt_number = 2. Old coach messages stay linked to session_id only.
+
+When the coach sub-view reopens after a re-run debrief:
+
+It loads all coach_messages for the session (including old ones from debrief v1)
+But get_debrief_output MCP tool returns debrief v2 (the new is_active = true record)
+The coach now has a conversation history that references things from v1 but tool output from v2
+The agent will either contradict itself or confuse the founder by mixing evidence from two different debriefs.
+
+Fix:
+
+When the coach session starts, record which debriefs.id is active. Load only messages for that debrief_id. Start a fresh coach conversation after a re-run.
+
+5. pitch_recordings missing mime_type column
+
+The STT pipeline Cloud Task reads the video file from GCS and calls Speech-to-Text v2. The STT API requires an encoding parameter (WEBM_OPUS, MP4, etc.). The encoding is determined by which browser recorded the pitch.
+
+The mime_type is known at record creation time (from MediaRecorder.mimeType), but there's no column to store it. The Cloud Task worker has no way to recover it later — it would need to sniff the file format from GCS, which is fragile.
+
+Fix:
+
+6. sessions.title has no defined write path
+
+The column exists. The SessionCard displays it as a title. But no API route, Cloud Task, or trigger is documented to write it. The Brief Extraction Agent writes to project_briefs.extracted_summary, not to sessions.title.
+
+The sessions landing page needs title populated or it shows "Untitled Session" for everything. Who writes it?
+
+Fix: In the brief extraction Cloud Task (/api/tasks/brief-extraction), after writing extracted_summary, derive a title from extracted_summary.problem (first 60 chars) and UPDATE sessions SET title = $1.
+
+🟠 Missing Timestamps — Ordering and Debugging Breaks
+Every re-submittable entity needs a created_at. Currently missing:
+
+Table	Impact
+project_briefs	Can't determine latest brief on re-submission
+hackathon_briefs	Same
+pitch_recordings	Can't order multiple recordings; is_active alone isn't enough for audit
+debriefs	Can't timestamp when each attempt was generated; can't show "Debrief from 2h ago"
+coach_messages	Can't show message timestamps in the chat UI
+Fix: Add created_at timestamptz DEFAULT now() to all five tables.
+
+🟠 Undefined Enum Values — Runtime String Errors
+The schema uses text columns for all status and role fields with no CHECK constraints or ENUMs. A typo in application code silently writes a bad value and the row is never fetched correctly.
+
+Column	Valid Values (implied by spec, not enforced)
+sessions.state	draft, brief_ready, pitch_recorded, qa_completed, debrief_ready, completed
+project_briefs.status	pending, extracting, ready, failed, superseded
+hackathon_briefs.status	same as above
+pitch_recordings.status	pending, uploading, processing, ready, failed
+qa_sessions.status	active, ended, abandoned
+debriefs.status	generating, complete, failed
+coach_messages.role	founder, coach
+qa_turns.speaker	founder, vc, domain_expert, user_advocate
+Fix: Either add CHECK (state IN (...)) constraints or use Postgres ENUMs. At minimum, sessions.state should have a CHECK since the entire navigation logic depends on it being a valid value.
+
+🟡 Schema Inconsistencies — Maintenance Friction
+7. debriefs mixes scalar columns with JSONB inconsistently
+
+verdict and next_drill are scalar text columns, while the rest of DebriefOutput is JSONB. The DebriefOutput is a single struct generated atomically by the agent. Having some fields as columns and others as JSONB means:
+
+The write path must split one object into 7 separate assignments
+Adding a new field to DebriefOutput requires a schema migration for scalar fields but not for JSONB fields
+Fix: Either store all of DebriefOutput as a single output jsonb NOT NULL column (simplest), or be consistent — make verdict and next_drill part of a top-level output jsonb field, and keep the individual columns only if they're queried directly.
+
+8. raw_guidelines vs raw_context — inconsistent naming
+
+project_briefs.raw_context and hackathon_briefs.raw_guidelines represent the same thing: raw textarea input from the founder. Inconsistent names make the codebase harder to navigate.
+
+Fix: Rename hackathon_briefs.raw_guidelines → raw_context.
+
+9. sessions.last_active_at has no defined update trigger
+
+This column exists but no spec, API route, or hook documents when it's updated. The Q&A heartbeat updates qa_sessions.last_heartbeat_at. Should last_active_at be updated on every API call? Only on state transitions? A Postgres trigger on sessions.updated_at would cover it, but it's undefined.
+
+10. qa_sessions missing FK to pitch_recordings
+
+The system prompt injected into Gemini Live includes the pitch transcript. The transcript is fetched from pitch_recordings at Q&A start time. But qa_sessions has no record of which pitch was used. If a founder re-records after Q&A (edge case), there's no audit trail showing which transcript the judges actually heard.
+
+Fix:
+
+Corrected Schema
+Issues Summary
+#	Issue	Severity	Tables
+1	No is_active/created_at on briefs — MCP tool can't find current brief	🔴	project_briefs, hackathon_briefs
+2	Plain INDEX on qa_turns instead of UNIQUE — duplicate turns corrupt debrief	🔴	qa_turns
+3	No qa_session_id FK on debriefs — wrong turns used for fracture map	🔴	debriefs
+4	No debrief_id FK on coach_messages — coach context breaks on re-run debrief	🔴	coach_messages
+5	No mime_type on pitch_recordings — STT encoding unknown	🟠	pitch_recordings
+6	sessions.title has no write path	🟠	sessions
+7	Missing created_at on 5 tables	🟠	all except sessions, qa_sessions
+8	No CHECK constraints on state/status/role/speaker columns	🟠	all
+9	debriefs splits one struct across scalar + JSONB columns inconsistently	🟡	debriefs
+10	raw_guidelines vs raw_context naming inconsistency	🟡	hackathon_briefs
+11	sessions.last_active_at undefined update trigger	🟡	sessions
+12	No pitch_recording_id FK on qa_sessions	🟡	qa_sessions

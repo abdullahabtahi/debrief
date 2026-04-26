@@ -1,0 +1,22 @@
+# Internal AI instructions
+CLAUDE.md
+AGENTS.md
+
+# Internal planning docs
+Docs/L1_Docs/
+
+# App dependencies
+debrief-demo-room/node_modules/
+debrief-demo-room/.next/
+debrief-demo-room/tsconfig.tsbuildinfo
+
+# Secrets
+debrief-demo-room/.env.local
+debrief-demo-room/.env*.local
+
+# Internal agent docs (inside app)
+debrief-demo-room/docs/
+
+# macOS
+.DS_Store
+**/.DS_Store

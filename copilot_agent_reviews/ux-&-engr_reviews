@@ -1,0 +1,117 @@
+Opportunities — UX & System Engineering
+✨ UX — Delightful Moments
+1. Pre-Q&A personalized coaching tip
+
+The brief and transcript are both available before the Q&A starts. A single sentence of pre-game coaching — generated from the brief summary — could appear on the pitch sub-view's "Go to Q&A" screen: "Your market size claim may be challenged — VC judges typically want a TAM/SAM breakdown."
+
+This costs one lightweight Gemini Flash call (no ADK needed) and transforms the Q&A entry from a cold start into a coached one. It also validates that the brief extraction actually captured something meaningful.
+
+2. Judge persona introduction before Q&A starts
+
+The Q&A room is described as "high-stakes" but the founders enter a blank room and then judges just start talking. Add a 3-second pre-room intro screen: show each judge tile with their name, title, and one-sentence archetype ("Marcus — Partner at Tier-1 fund. Will ask about your moat first."). Framer Motion stagger-in. Then room goes live.
+
+This is pure CSS + static copy — zero backend work — but radically changes the emotional tone from "audio glitch test" to "you're about to be grilled."
+
+3. Live judge subtitle during Q&A
+
+The Gemini Live API already provides a parallel text output channel — the spec uses it for turn capture. Rendering that text as a live subtitle under the active judge tile gives founders who mishear a question a fallback. "Transcript display during Q&A" is listed as out-of-scope, but this is different: it's the judge's text only, no founder transcript, rendered as a 1-line ticker at the bottom of the tile.
+
+It's already in the pipeline. You're just routing it to a second render target.
+
+4. Fracture map reveal order is a cinematic opportunity
+
+The spec says bars animate "from 0 to score on first render." The order they reveal in matters enormously. Consider: stagger the three axes with 400ms delay each, with a brief hold at the overall score before individual axes drop. Overall score appears first (tension), then VC, Domain Expert, User Advocate drop in. If any score is red, the bar fills to red with a subtle pulse. This transforms the debrief from a form render into a verdict moment — which the mission says is the emotional core of the product.
+
+Framer Motion staggerChildren handles this in ~10 lines.
+
+5. Debrief fracture axis hover reveals evidence
+
+The fracture map shows a score (e.g., "User Advocate: 4/10") and a top_concern subtitle. But why 4? The debrief DebriefOutput already contains qa_vulnerabilities with evidence quotes. Hovering a fracture axis bar could expand a tooltip showing the specific Q&A moment that drove the score — a blockquote from the founder or judge's turn.
+
+This turns a static score into a legible judgment. Zero additional agent calls — the data is already in the stream.
+
+6. Coach suggested prompts are generic; make them derived from the debrief
+
+The spec hardcodes 3 chips: "What should I focus on most?", "Walk me through my worst Q&A moment.", "How do I fix my User Advocate score?" These are fine, but the third one only makes sense if User Advocate was the lowest score.
+
+Generate the 3 chip texts server-side when writing the debrief to Supabase: pick the two lowest-scoring axes and the most severe qa_vulnerability, and write them as coach_opening_prompts JSON on the debriefs row. The Coach sub-view reads them on mount. The chips are now always the three most relevant questions for this specific session.
+
+7. Autosave indicator on brief textarea
+
+The spec says textarea contents are auto-saved to Zustand on every keystroke. But founders don't know this — they may hesitate to navigate away. A subtle "Saved" label (with a checkmark, fading in 500ms after the last keystroke) removes the fear of losing work. This is a 5-line debounced state toggle, but it has outsized trust impact for founders who just spent 20 minutes writing context.
+
+8. Session recovery via QR code
+
+The session_code is the recovery mechanism, but at a hackathon, founders may want to share their session with a teammate or switch devices. Render a QR code (e.g., qrcode.react) next to the session code badge — click to expand a modal showing the QR code and a copyable URL like https://demodayroom.io/recover?code=BR-4X9K.
+
+The infrastructure is all already there. This is purely a frontend addition.
+
+⚙️ System Engineering — Robustness
+9. Pre-warm context cache while founder reads DebriefTriggerCard
+
+The spec shows the Debrief trigger as a card: "Your Debrief is Ready" + "Get Debrief" CTA. This is a forced pause before the agent fires. Use it: on mount of the debrief review sub-view (before the founder clicks), fire a prefetch request that calls the MCP Toolbox tools (get_project_brief, get_pitch_transcript, get_qa_turns) and warms the ADK ContextCacheConfig cache.
+
+When the founder clicks "Get Debrief", the agent starts with a hot cache instead of a cold one. First token latency drops. The spec targets "first content visible within 3 seconds" — a cold MCP fetch + cold context cache makes this hard to hit; pre-warming makes it reliable.
+
+10. Write debrief sections to Supabase incrementally as they stream
+
+Currently the spec writes the full DebriefOutput to the debriefs table only after stream completes (FR-DEBRIEF-08). If Cloud Run kills the stream at second 28 of a 30-second generation, or the browser closes mid-stream, the entire debrief is lost.
+
+Write each structured section (verdict, fracture_map, strengths, etc.) to a debrief_progress JSONB column as it arrives in the stream. On re-load: if is_active = true but status != 'complete', render the partial debrief with a "Debrief was interrupted — re-run to complete" banner. Founders lose nothing.
+
+11. Circuit breaker on Q&A turn writes
+
+The turn write path (FR-QA-06) is fire-and-forget with 3 retries. If Supabase is degraded, every turn_complete event generates 3 failed HTTP requests — 3× traffic to an already-struggling database. There's no backoff coordination between concurrent turn writes.
+
+Add a module-level circuit breaker: track failure rate over the last 10 writes. If >50% fail, switch to local buffer (in-memory array) and flush the buffer in a single batch request every 10 seconds. The spec says "never batch" to prevent data loss — the circuit breaker only activates on failure, not as default behavior. This gives you both the normal incremental path and a graceful degraded path.
+
+12. GCS lifecycle policy — ephemeral storage assumption
+
+The spec stores pitch videos in GCS but there is no mention of cleanup. A 3-minute webm at 6 Mbps is ~135 MB. Ten demo sessions = 1.35 GB. GCS charges $0.026/GB/month which is negligible, but more importantly: a GCS bucket without lifecycle policy accumulates indefinitely. After the hackathon, there's no defined cleanup path.
+
+Set a GCS object lifecycle policy: delete objects in sessions/*/pitches/ after 30 days, sessions/*/briefs/ after 30 days. This is one Terraform resource (google_storage_bucket lifecycle block) and costs nothing to implement before the first upload.
+
+13. Supabase RLS as defense-in-depth
+
+There's no auth, so sessions are accessed by UUID only. The Supabase service role key (used in the Next.js API routes) bypasses RLS entirely — which is correct for server-side. But if any client-side code ever accidentally exposes the service role key, all session data is readable.
+
+More importantly: Supabase also has an anon key. If any route ever accidentally uses the anon key instead of the service role key (easy config mistake), RLS is what prevents cross-session reads. Add RLS policies on sessions, project_briefs, qa_turns, debriefs, coach_messages that restrict to service_role only. Zero impact on function, full defense against credential misconfiguration.
+
+14. Agent initialization on Cloud Run startup (not on first request)
+
+The ADK agent (DatabaseSessionService init, MCP Toolbox tool registration, Vertex AI auth) currently initializes on the first request that hits each Cloud Run instance. With min-instances=1, there's always one warm instance, but the first request after a deployment still pays full initialization cost (~1–2 seconds for DB connection establishment).
+
+Create a module-level singleton that initializes the agent in instrumentation.ts (Next.js server startup hook) rather than inside the route handler. The initialization runs once at container start, not on the first request. The first user to hit the Debrief or Coach gets the same latency as the hundredth.
+
+15. Pitch transcript quality signal for agents
+
+After STT completes and before writing status = 'ready', run a cheap synchronous heuristic (no LLM needed):
+
+Write this as transcript_quality JSONB on the pitch_recordings row. The Debrief agent's system prompt can include: "Note: transcript quality score shows 23% filler words and 210 WPM — flag delivery issues accordingly."
+
+This costs 5ms of CPU and gives the agent calibration data it currently has to infer from the transcript itself.
+
+16. Session code uniqueness collision handling
+
+The spec generates session codes matching ^[A-Z]{2}-[A-Z0-9]{4}$. The database needs a UNIQUE constraint on session_code, but the POST /api/sessions route has no documented collision handling. With ~1.1B possible codes and hackathon-scale sessions, collision probability is near zero — but a uniqueness violation at the DB level will surface as an unhandled 500 error, not a retried generation.
+
+Add one retry loop in the session creation route: generate code → attempt insert → on unique violation → regenerate → retry once. Three lines of code, prevents an undignified crash on the one-in-a-billion event.
+
+Summary Table
+#	Opportunity	Type	Effort	Impact
+1	Pre-Q&A personalized coaching tip	UX	Low	High
+2	Judge persona intro screen	UX	Low	High
+3	Live judge subtitle in Q&A	UX	Low	Medium
+4	Cinematic fracture map reveal	UX	Low	High
+5	Fracture axis hover → evidence tooltip	UX	Low	Medium
+6	Debrief-derived coach prompt chips	UX	Medium	Medium
+7	Autosave indicator on brief	UX	Low	Medium
+8	Session recovery QR code	UX	Low	Medium
+9	Pre-warm context cache on debrief mount	Eng	Low	High
+10	Incremental debrief write-through	Eng	Medium	High
+11	Circuit breaker on Q&A turn writes	Eng	Medium	Medium
+12	GCS lifecycle policy	Eng	Low	Medium
+13	Supabase RLS as defense-in-depth	Eng	Low	Medium
+14	Agent singleton init at startup	Eng	Low	High
+15	Transcript quality signal for agents	Eng	Low	Medium
+16	Session code collision retry	Eng	Low	Low

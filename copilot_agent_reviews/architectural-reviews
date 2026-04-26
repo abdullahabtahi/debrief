@@ -1,0 +1,123 @@
+Architectural Blind Spots — Demo Day Room
+🔴 CRITICAL (Demo-blocking if not addressed before building)
+1. adk-js (ADK TypeScript) doesn't have Python ADK feature parity
+
+The ADK cheatsheet explicitly states: "Python only for now. Support for other languages is coming soon." The entire agent layer is built on ADK TypeScript features that may not exist:
+
+DatabaseSessionService → Supabase
+TokenBasedContextCompactor + LlmSummarizer
+ContextCacheConfig
+MCP Toolbox (@toolbox-sdk/adk) integration
+Risk: You could start building Debrief + Coach agents and discover these APIs either don't exist in adk-js, have different method signatures, or require workarounds that break the streaming contract.
+
+Mitigation: Before writing a single line of agent code, verify each feature against the adk-js changelog and README. If DatabaseSessionService doesn't exist in TypeScript, the entire persistence strategy changes.
+
+2. Gemini Live speaker attribution is unverified
+
+The Q&A feature plan says: "Speaker identity: Gemini Live annotates turns with persona names in text output." This is stated as fact, but it's not documented Gemini Live behavior — it's an assumption about the model's text output channel.
+
+Three things are assumed simultaneously:
+
+Gemini Live produces a reliable parallel text channel
+The text reliably identifies which of the 3 personas is speaking
+The text boundaries align cleanly with turn_complete events
+The entire Debrief fracture map (the hero artifact) depends on correctly attributing Q&A turns to vc, domain_expert, user_advocate. If this attribution is wrong or absent, the fracture map's 3-axis scoring collapses into a single undifferentiated mass.
+
+Mitigation: Build a spike test for Gemini Live text output + persona attribution before committing to this architecture. Have a fallback: parse persona name from the beginning of each text turn (e.g., model says "VC: What's your market size?").
+
+3. Gemini Live context resets on every reconnect
+
+The spec acknowledges "Gemini Live is stateless per connection; system prompt re-sent", but doesn't address the consequence: judges forget the entire conversation history on every token refresh or network drop. A 60-minute Q&A session with one token expiry = judges restart from zero, potentially repeating questions or losing continuity.
+
+Mitigation: Serialize the Q&A turns already captured (from Supabase via get_qa_turns call) and re-inject them as conversation history in the system prompt on reconnect. The spec needs a reconnect_context payload in the system prompt template.
+
+4. Internal Cloud Tasks endpoints are publicly callable
+
+/api/tasks/brief-extraction and /api/tasks/transcribe are labeled "internal" but have no defined protection. Any external party can POST to them, trigger spurious Gemini Flash calls, and write arbitrary data to extracted_summary columns.
+
+Cloud Tasks supports OIDC token verification — the handler should verify the Authorization: Bearer <token> header from the Cloud Tasks service account.
+
+Mitigation: Add middleware to both task handlers that verifies the Cloud Tasks OIDC JWT against Google's token endpoint. Without this, the extraction and transcription APIs are open to abuse.
+
+🟠 HIGH (Significant implementation risk)
+5. STT pipeline has no failure recovery path
+
+If the Cloud Task fails (STT quota exceeded, network error, audio format unrecognized), the session is permanently stuck in brief_ready. There is no:
+
+Retry strategy (Cloud Tasks retries are configured externally but not documented)
+User-visible error state in TranscriptStatusBanner
+Manual re-trigger mechanism
+Timeout threshold (how long should the user wait before assuming failure?)
+A founder stuck at "Transcribing..." with no ability to proceed is a demo-day killer.
+
+Mitigation: Define a status = 'failed' state for pitch_recordings. After N retries or T minutes, the API route /api/pitch/status should return this and the UI should show a "Transcription failed — re-record your pitch" CTA.
+
+6. connection_limit=1 Supabase pooling will break under load
+
+Supavisor transaction mode with connection_limit=1 means only one concurrent database connection from the app. Cloud Run with even 2 concurrent requests (each making Supabase calls) will queue or fail. During a hackathon demo with judges watching, this will manifest as 500 errors.
+
+This is particularly dangerous in the Q&A turn write path, which fires a POST on every turn_complete event — potentially every 10–30 seconds, concurrent with heartbeats.
+
+Mitigation: Increase connection_limit to at least 10–25. Transaction mode is correct, but connection_limit=1 is a development/single-user constraint. Most Supabase Supavisor guides recommend 10–50.
+
+7. MediaRecorder format incompatibility (Safari/Firefox)
+
+video/webm is reliable on Chrome and Edge, but:
+
+Safari produces video/mp4 (H.264 + AAC)
+Firefox may produce video/ogg or video/webm depending on version
+GCP Speech-to-Text v2 Chirp 3 accepts WEBM_OPUS and MP4 audio encodings, but the spec doesn't address which mimeType to pass to MediaRecorder, how to detect the browser's supported format, or how to configure the STT request accordingly.
+
+A Safari user at the demo recording their pitch will produce an MP4, which needs a different STT encoding parameter than WEBM_OPUS.
+
+Mitigation: Use MediaRecorder.isTypeSupported() to select the appropriate MIME type and pass it through to the STT request. Add Safari-specific handling for video/mp4;codecs=avc1.
+
+8. Cloud Run 300s request timeout vs. Debrief streaming
+
+Cloud Run has a hard maximum request timeout of 3600s, but the spec sets timeout=300s. The Debrief Agent reads a full brief, pitch transcript, and all Q&A turns (potentially 50+ turns), processes them through claude-opus-4-7, and streams back a structured output.
+
+If generation takes > 300 seconds, the SSE stream is killed mid-response. The "hero artifact" arrives truncated with no recovery. There's no defined behavior for a partially-streamed debrief.
+
+Mitigation: Either (a) increase Cloud Run timeout to 600–900s for the debrief endpoint specifically, or (b) break the debrief into a two-phase pattern: enqueue generation via Cloud Tasks, poll for completion, then stream the pre-generated result.
+
+🟡 MEDIUM (Should be addressed before launch)
+9. sequence_number client-incremented + fire-and-forget = gaps and duplicates
+
+The spec says sequence_number is client-incremented (0, 1, 2...) with fire-and-forget POSTs and 3 retries. If retry #1 fails and retry #2 succeeds, the turn is written once. But if the original request was slow (not failed), both the original and the retry succeed → duplicate turn with the same sequence_number. The Debrief agent reading get_qa_turns "in order" will see duplicates.
+
+Mitigation: Add a UNIQUE constraint on (qa_session_id, sequence_number) in the qa_turns table. Let the retry logic use upsert (INSERT ... ON CONFLICT DO NOTHING) so duplicates are silently dropped.
+
+10. Supabase ADK session tables are undocumented in the schema
+
+The database schema documents sessions, project_briefs, pitch_recordings, qa_turns, debriefs, coach_messages — but no ADK session tables. DatabaseSessionService in ADK creates its own tables (typically something like adk_sessions, adk_events). If adk-js doesn't auto-migrate these, or if they need to be created manually, the agent initialization will fail at runtime with a cryptic database error.
+
+Mitigation: Check the adk-js DatabaseSessionService source for its expected table schema. Add those tables to the Supabase migration before agent integration.
+
+11. Multi-tab localStorage conflict
+
+Two open browser tabs for the same session share localStorage. If tab A triggers a state transition (e.g., brief_ready) and tab B still has the Zustand store in draft, tab B's next CTA action will submit the brief again, enqueuing a second Cloud Task.
+
+Mitigation: Use the storage event to listen for cross-tab localStorage changes and sync the Zustand store. Or use a BroadcastChannel to propagate state updates across tabs.
+
+12. Q&A room has no pitch context guard
+
+FR-QA-01 says "fetch session context (brief summaries + transcript) for injection into system prompt" on mount. But what if sessions.state = 'pitch_recorded' but pitch_recordings.status is still 'processing'? The transcript is not yet available. The system prompt would be injected without pitch context, meaning judges ask generic questions unrelated to the actual pitch.
+
+The Room phase is unlocked when state >= brief_ready, but the Q&A sub-view requires a finished transcript. There's no guard at the Q&A entry point.
+
+Mitigation: The Q&A sub-view should check pitch_recordings.status = 'ready' before allowing session start. If transcript is still processing, show "Preparing your session… waiting for transcript" with a spinner.
+
+Summary Table
+#	Blind Spot	Severity	Affected Feature
+1	adk-js missing Python ADK features	🔴 Critical	Debrief, Coach
+2	Gemini Live speaker attribution unverified	🔴 Critical	Q&A Room, Debrief
+3	Gemini Live context resets on reconnect	🔴 Critical	Q&A Room
+4	Internal Cloud Tasks endpoints unprotected	🔴 Critical	Brief, Pitch
+5	STT pipeline has no failure recovery	🟠 High	Pitch Recording
+6	connection_limit=1 too low	🟠 High	All
+7	MediaRecorder Safari/Firefox incompatibility	🟠 High	Pitch Recording
+8	Cloud Run 300s timeout kills Debrief stream	🟠 High	Debrief
+9	Duplicate sequence_number on retry	🟡 Medium	Q&A Room, Debrief
+10	ADK session tables missing from DB schema	🟡 Medium	Debrief, Coach
+11	Multi-tab localStorage conflict	🟡 Medium	All
+12	Q&A starts without transcript if STT slow	🟡 Medium	Q&A Room

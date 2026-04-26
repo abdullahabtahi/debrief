@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Debrief - Phase 1: Briefing Room</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-highest": "#d8e3fb",
+                    "surface-variant": "#d8e3fb",
+                    "secondary-container": "#d0e1fb",
+                    "on-primary-fixed-variant": "#474747",
+                    "surface-container-high": "#dee8ff",
+                    "primary-container": "#1b1b1b",
+                    "on-secondary-fixed-variant": "#38485d",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-low": "#f0f3ff",
+                    "on-surface-variant": "#4c4546",
+                    "secondary-fixed": "#d3e4fe",
+                    "on-tertiary-fixed-variant": "#444749",
+                    "on-surface": "#111c2d",
+                    "inverse-primary": "#c6c6c6",
+                    "surface-bright": "#f9f9ff",
+                    "on-primary": "#ffffff",
+                    "surface-tint": "#5e5e5e",
+                    "primary": "#000000",
+                    "on-background": "#111c2d",
+                    "on-secondary-fixed": "#0b1c30",
+                    "surface-container": "#e7eeff",
+                    "error": "#ba1a1a",
+                    "tertiary-container": "#191c1e",
+                    "secondary-fixed-dim": "#b7c8e1",
+                    "outline": "#7e7576",
+                    "inverse-surface": "#263143",
+                    "tertiary-fixed": "#e0e3e5",
+                    "inverse-on-surface": "#ecf1ff",
+                    "on-error": "#ffffff",
+                    "tertiary-fixed-dim": "#c4c7c9",
+                    "on-primary-fixed": "#1b1b1b",
+                    "surface": "#f9f9ff",
+                    "on-primary-container": "#848484",
+                    "on-error-container": "#93000a",
+                    "outline-variant": "#cfc4c5",
+                    "on-secondary": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "on-secondary-container": "#54647a",
+                    "primary-fixed": "#e2e2e2",
+                    "on-tertiary-fixed": "#191c1e",
+                    "secondary": "#505f76",
+                    "surface-dim": "#cfdaf2",
+                    "on-tertiary-container": "#818486",
+                    "tertiary": "#000000",
+                    "background": "#f9f9ff",
+                    "primary-fixed-dim": "#c6c6c6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "2xl": "1.5rem",
+                    "3xl": "2rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "unit": "4px",
+                    "card-padding": "32px",
+                    "margin-page": "48px",
+                    "gutter": "24px",
+                    "section-gap": "64px"
+            },
+            "fontFamily": {
+                    "body-main": [
+                            "Inter"
+                    ],
+                    "metadata": [
+                            "Inter"
+                    ],
+                    "nav-secondary": [
+                            "Inter"
+                    ],
+                    "nav-primary": [
+                            "Inter"
+                    ],
+                    "card-title": [
+                            "Inter"
+                    ]
+            },
+            "fontSize": {
+                    "body-main": [
+                            "15px",
+                            {
+                                    "lineHeight": "1.6",
+                                    "letterSpacing": "0",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "metadata": [
+                            "12px",
+                            {
+                                    "lineHeight": "1.4",
+                                    "letterSpacing": "0.02em",
+                                    "fontWeight": "500"
+                            }
+                    ],
+                    "nav-secondary": [
+                            "14px",
+                            {
+                                    "lineHeight": "1.5",
+                                    "letterSpacing": "0.01em",
+                                    "fontWeight": "500"
+                            }
+                    ],
+                    "nav-primary": [
+                            "32px",
+                            {
+                                    "lineHeight": "1.2",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "card-title": [
+                            "20px",
+                            {
+                                    "lineHeight": "1.4",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "600"
+                            }
+                    ]
+            }
+        },
+        }
+      }
+    </script>
+<style>
+        .cinematic-mesh {
+            background-color: #f1f2f6;
+        }
+        .header-gradient {
+            background-image: radial-gradient(circle at 50% 0%, rgba(135, 165, 230, 0.8) 0%, rgba(135, 165, 230, 0) 50%);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-background font-body-main text-body-main min-h-screen cinematic-mesh antialiased relative">
+<!-- Primary TopNavBar -->
+<header class="header-gradient pt-8 pb-4 sticky top-0 z-50">
+<div class="flex flex-col w-full max-w-[1200px] mx-auto px-12 gap-8">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center font-black text-xl tracking-tighter">
+<span class="material-symbols-outlined text-[24px]">adjust</span>
+</div>
+<div class="bg-white rounded-full shadow-sm px-4 py-2 flex items-center gap-3">
+<div class="w-6 h-6 rounded-full overflow-hidden">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="close-up portrait of a professional man in soft natural lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZ_spDs4soHwqgBujDmhFtN2LphERXPbTHubUPYmdp08l3MQ4lbtisGSkgCIAHq3kOiqjVkedGOehBhELbjy60EMmdyIf_GuT1_x_ktNZnqs4H79G-FYsQEg355CRGhjyIB2jSDBvkkx899yLLg4lpLMT8p52uamBFFssNPfbjf5U-hvYZLR_4nsA80kKxYZ5VB_XDHUSm5U08av75sbYpbpMs9El2D2MpAbFNfE6taSGU0G_bKF_IkBomXLCTHVGUSDCOISwo_AI"/>
+</div>
+<span class="text-sm font-semibold text-gray-800">Mr. Gibson</span>
+<span class="material-symbols-outlined text-[16px] text-gray-500" data-icon="keyboard_arrow_down">keyboard_arrow_down</span>
+</div>
+<div class="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-gray-500 cursor-pointer">
+<span class="material-symbols-outlined text-[20px]">info</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="bg-white rounded-full shadow-sm px-4 py-2 flex items-center gap-3">
+<span class="text-sm font-semibold text-gray-800">Sessions</span>
+<div class="w-6 h-6 bg-black rounded-full flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-[14px]" data-icon="keyboard_arrow_down">keyboard_arrow_down</span>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center bg-white shadow-sm text-gray-500 hover:text-black transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="settings">settings</span>
+</button>
+<button class="w-10 h-10 rounded-full flex items-center justify-center bg-white shadow-sm text-gray-500 hover:text-black transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="search">search</span>
+</button>
+<button class="w-10 h-10 rounded-full flex items-center justify-center bg-white shadow-sm text-gray-500 hover:text-black transition-colors relative">
+<span class="material-symbols-outlined text-[20px]" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-black rounded-full"></span>
+</button>
+</div>
+</div>
+<!-- Dual Tier Nav -->
+<div class="flex flex-col gap-6 mt-4">
+<div class="flex items-center gap-4 text-4xl font-semibold tracking-tight">
+<a class="text-black cursor-pointer" href="#">Brief</a>
+<a class="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer" href="#">Room</a>
+<a class="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer" href="#">Debrief</a>
+</div>
+<nav class="flex justify-start items-center gap-8 border-b border-gray-200/50 pb-3">
+<a class="text-black text-sm font-semibold border-b-2 border-black pb-3 -mb-[14px] cursor-pointer" href="#">Project Context</a>
+<a class="text-gray-500 hover:text-black text-sm font-semibold transition-colors cursor-pointer" href="#">Hackathon Context</a>
+</nav>
+</div>
+</div>
+</header>
+<main class="max-w-[1200px] mx-auto px-12 py-12">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+<!-- Project Context Box -->
+<div class="bg-white rounded-3xl p-10 shadow-sm col-span-1 lg:col-span-1 border border-gray-100 flex flex-col gap-10">
+<!-- Mission Statement -->
+<div class="relative group">
+<div class="flex justify-between items-start mb-2">
+<h2 class="text-xl font-bold text-gray-900">Mission Statement</h2>
+<button class="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-black hover:border-gray-300 transition-all">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+</div>
+<p class="text-xs text-gray-400 mb-4 uppercase tracking-wide font-medium">Fill Out Mission Summary.</p>
+<p class="text-gray-600 leading-relaxed text-sm">
+                        To redefine professional collaboration by providing an institutional-grade debriefing platform. We aim to replace chaotic chat threads with structured, analytical environments where high-stakes decisions are analyzed with clarity and rigor.
+                    </p>
+<div class="mt-6 flex justify-between items-center">
+<span class="text-sm text-gray-400">Add Text...</span>
+<button class="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[14px]">edit</span>
+</button>
+</div>
+</div>
+<!-- The Problem -->
+<div class="relative group border-t border-gray-100 pt-10">
+<div class="flex justify-between items-start mb-2">
+<h2 class="text-xl font-bold text-gray-900">The Problem</h2>
+<button class="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-black hover:border-gray-300 transition-all">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+</div>
+<p class="text-xs text-gray-400 mb-4 uppercase tracking-wide font-medium">Identify the core issues.</p>
+<ul class="space-y-3 text-gray-600 text-sm">
+<li class="flex items-start gap-2">
+<span class="text-gray-400 mt-0.5">•</span>
+<span>Post-project reviews are often unstructured and emotional rather than analytical.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="text-gray-400 mt-0.5">•</span>
+<span>Key insights are lost in scattered documents and informal conversations.</span>
+</li>
+</ul>
+<div class="mt-6 flex justify-between items-center">
+<span class="text-sm text-gray-400">Add Text...</span>
+<button class="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[14px]">edit</span>
+</button>
+</div>
+</div>
+<!-- Solution & Unique Insight -->
+<div class="relative group border-t border-gray-100 pt-10">
+<div class="flex justify-between items-start mb-2">
+<h2 class="text-xl font-bold text-gray-900">Solution &amp; Insight</h2>
+<button class="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-black hover:border-gray-300 transition-all">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+</div>
+<p class="text-xs text-gray-400 mb-6 uppercase tracking-wide font-medium">Propose the solution.</p>
+<div class="space-y-6">
+<div>
+<h3 class="text-sm font-semibold text-gray-800 mb-1">The Solution</h3>
+<p class="text-gray-600 text-sm">A centralized, high-fidelity 'Briefing Room' that guides teams through a structured post-mortem methodology, separating facts from feelings.</p>
+</div>
+<div>
+<h3 class="text-sm font-semibold text-gray-800 mb-1">The Insight</h3>
+<p class="text-gray-600 text-sm">Executives don't need another task manager; they need a dedicated space for reflection that feels as serious as a boardroom.</p>
+</div>
+</div>
+<div class="mt-6 flex justify-between items-center">
+<span class="text-sm text-gray-400">Add Text...</span>
+<button class="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[14px]">edit</span>
+</button>
+</div>
+</div>
+<!-- Why Now? -->
+<div class="relative group border-t border-gray-100 pt-10">
+<div class="flex justify-between items-start mb-2">
+<h2 class="text-xl font-bold text-gray-900">Why Now?</h2>
+<button class="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-black hover:border-gray-300 transition-all">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+</div>
+<p class="text-xs text-gray-400 mb-4 uppercase tracking-wide font-medium">Explain the timing.</p>
+<p class="text-gray-600 leading-relaxed text-sm">
+                        With remote work permanently altering communication, the lack of formal, in-person debriefings has created a gap in institutional learning. The market demands a digital equivalent of the 'closed-door meeting'.
+                    </p>
+<div class="mt-6 flex justify-between items-center">
+<span class="text-sm text-gray-400">Add Text...</span>
+<button class="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[14px]">edit</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Hackathon Context Box -->
+<div class="bg-white rounded-3xl p-10 shadow-sm col-span-1 lg:col-span-1 border border-gray-100 flex flex-col gap-10">
+<!-- Judging Criteria -->
+<div class="relative group">
+<div class="flex justify-between items-start mb-2">
+<h2 class="text-xl font-bold text-gray-900">Judging Criteria</h2>
+<button class="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-black hover:border-gray-300 transition-all">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+</div>
+<p class="text-xs text-gray-400 mb-4 uppercase tracking-wide font-medium">Define success metrics.</p>
+<p class="text-gray-600 leading-relaxed text-sm">
+                        Focus on technical execution, innovation, and potential for real-world impact. The solution must demonstrate a clear understanding of the problem and offer a novel approach.
+                    </p>
+<div class="mt-6 flex justify-between items-center">
+<span class="text-sm text-gray-400">Add Text...</span>
+<button class="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[14px]">edit</span>
+</button>
+</div>
+</div>
+<!-- Event Vibe -->
+<div class="relative group border-t border-gray-100 pt-10">
+<div class="flex justify-between items-start mb-2">
+<h2 class="text-xl font-bold text-gray-900">Event Vibe</h2>
+<button class="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-black hover:border-gray-300 transition-all">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+</div>
+<p class="text-xs text-gray-400 mb-4 uppercase tracking-wide font-medium">Set the tone.</p>
+<p class="text-gray-600 leading-relaxed text-sm">
+                        High energy, fast-paced, and highly collaborative. Expect late nights and intense brainstorming sessions fueled by caffeine and pizza.
+                    </p>
+<div class="mt-6 flex justify-between items-center">
+<span class="text-sm text-gray-400">Add Text...</span>
+<button class="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[14px]">edit</span>
+</button>
+</div>
+</div>
+<!-- Judge Personas -->
+<div class="relative group border-t border-gray-100 pt-10">
+<div class="flex justify-between items-start mb-2">
+<h2 class="text-xl font-bold text-gray-900">Judge Personas</h2>
+<button class="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-black hover:border-gray-300 transition-all">
+<span class="material-symbols-outlined text-[16px]">more_horiz</span>
+</button>
+</div>
+<p class="text-xs text-gray-400 mb-4 uppercase tracking-wide font-medium">Know your audience.</p>
+<ul class="space-y-3 text-gray-600 text-sm">
+<li class="flex items-start gap-2">
+<span class="text-gray-400 mt-0.5">•</span>
+<span><strong>The Investor:</strong> Looking for scalability and market fit.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="text-gray-400 mt-0.5">•</span>
+<span><strong>The Tech Lead:</strong> Evaluating architecture and code quality.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="text-gray-400 mt-0.5">•</span>
+<span><strong>The Designer:</strong> Focused on user experience and aesthetics.</span>
+</li>
+</ul>
+<div class="mt-6 flex justify-between items-center">
+<span class="text-sm text-gray-400">Add Text...</span>
+<button class="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[14px]">edit</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Left Info -->
+<div class="fixed bottom-12 left-12 z-50">
+<div class="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-gray-500 cursor-pointer">
+<span class="material-symbols-outlined text-[20px]">info</span>
+</div>
+</div>
+<!-- Floating Action Button -->
+<div class="fixed bottom-12 right-12 z-50">
+<button class="bg-black text-white px-6 py-3 rounded-full shadow-lg hover:scale-105 transition-transform duration-300 flex items-center gap-2 text-sm font-semibold">
+<span>Add area</span>
+<span class="material-symbols-outlined text-[18px]" data-icon="refresh">refresh</span>
+</button>
+</div>
+</body></html>

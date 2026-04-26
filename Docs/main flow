@@ -1,0 +1,428 @@
+# Main Flow and State Transitions
+
+## Flow Overview
+
+The app is a tightly scoped, phase-based workflow for hackathon founders preparing for demo day. The product should not behave like an open-ended dashboard where every page is always available. Instead, the app should guide the user through a structured rehearsal loop with clear prerequisites, completion states, and next actions.
+
+The core journey is:
+
+1. Complete the Brief
+2. Record the opening Pitch
+3. Enter the live Q&A Room
+4. Generate the Debrief
+5. Interact with the Coach
+6. Retry in a later session if needed
+
+Primary product phases:
+- Brief
+- Room
+- Debrief
+
+Secondary utility views:
+- Sessions
+- Analytics
+
+Utility views are always accessible, but they do not interrupt or replace the main flow.[page:211]
+
+---
+
+## Main User Journey
+
+### Step 1: Create or open a session
+The user either:
+- starts a new rehearsal session, or
+- opens an existing draft / completed session from Sessions.
+
+A session is the root object for the whole workflow. Every artifact belongs to a specific session:
+- project context
+- hackathon context
+- pitch recording
+- Q&A transcript 
+- debrief report
+- coach thread (Opus 4.7 Agent)
+
+### Step 2: Fill the Brief
+The user enters the two Brief sub-sections:
+- Project Context
+- Hackathon Context
+
+The purpose of Brief is to create enough structured context for the Room and Debrief to be meaningful. The user should not be allowed to enter the Q&A flow without completing the minimum required Brief fields.
+
+### Step 3: Record the Pitch
+Once the Brief is sufficiently complete, the user can enter the Room phase and record a short opening pitch.
+
+This pitch serves as the baseline performance artifact. It should happen before adversarial questioning so the system can evaluate the founder’s prepared story before the conversation changes it.
+
+### Step 4: Run the Q&A session
+After the pitch is completed, the user can start the live-room Q&A session.
+
+This phase should feel like the emotional center of the app:
+- high stakes
+- focused
+- realistic
+- slightly adversarial
+- but still controlled and understandable
+
+The Q&A should not be accessible before the pitch is recorded.
+
+### Step 5: Generate the Debrief
+Once the Q&A session is complete, the user can generate a structured review.
+
+This review is the main value artifact of the product. It should synthesize:
+- the project brief
+- the hackathon brief
+- the opening pitch
+- the Q&A session
+- narrative and delivery weaknesses
+
+### Step 6: Continue into Coach
+After the review is generated, the user can enter the Coach screen.
+
+The Coach is a post-mortem conversational layer where the user can:
+- ask follow-up questions,
+- request clarification,
+- ask for rewrites,
+- and get suggestions for the next practice round.
+
+### Step 7: Review history or retry
+After the session is complete, the user can:
+- revisit past sessions,
+- review old debriefs,
+- compare progress,
+- or start a new iteration.
+
+---
+
+## Main Flow Rules
+
+The app should follow these sequencing rules:
+
+- Brief must be completed before the user can progress meaningfully into Room.
+- Pitch must be completed before Q&A is unlocked.
+- Q&A must be completed before Debrief review is generated.
+- Review must exist before Coach becomes available.
+- Sessions and Analytics can be opened anytime, but they are not required steps in the flow.
+
+The flow should always make the next recommended action obvious.
+
+---
+
+## Navigation Logic
+
+### Primary navigation
+Top-level horizontal navigation:
+- Brief
+- Room
+- Debrief
+
+This navigation represents phases, not independent pages. A phase can be visible before it is unlocked, but locked phases should be visually distinct.
+
+### Secondary navigation
+Each primary phase has sub-views:
+
+- Brief
+  - Project Context
+  - Hackathon Context
+
+- Room
+  - Pitch
+  - Q&A
+
+- Debrief
+  - Review
+  - Coach
+
+The secondary navigation should only show the sub-views for the currently active phase.
+
+### Utility navigation
+Always-available utility actions:
+- Analytics
+- Sessions
+
+These should be presented as utility access in the header or top-right area, not as part of the core phase flow.
+
+---
+
+## State Model
+
+At the highest level, each session should have a lifecycle state.
+
+Suggested session states: (SUBJECT FOR REFINEMENT & BRAINSTORMING
+- `draft`
+- `brief_ready`
+- `pitch_recorded`
+- `qa_completed`
+- `debrief_ready`
+- `completed`
+
+These are product states, not technical implementation details. They should help drive UI gating, labels, progress indicators, and calls to action.
+
+### State meanings
+
+#### `draft`
+A session has been created, but the Brief is incomplete.
+
+Expected UI behavior:
+- user can edit Project Context and Hackathon Context
+- Room is visible but locked
+- Debrief is visible but locked
+- primary CTA: complete the Brief
+
+#### `brief_ready`
+The Brief has enough required information to proceed.
+
+Expected UI behavior:
+- user can access the Pitch screen
+- Q&A remains locked
+- Debrief remains locked
+- primary CTA: record opening pitch
+
+#### `pitch_recorded`
+The opening pitch has been successfully recorded and saved.
+
+Expected UI behavior:
+- Pitch is marked complete
+- Q&A is now unlocked
+- Debrief remains locked
+- primary CTA: enter live Q&A room
+
+#### `qa_completed`
+The live-room Q&A session has ended and enough session data exists to generate a debrief.
+
+Expected UI behavior:
+- Q&A is marked complete
+- Review can now be generated or displayed
+- Coach remains locked until review exists
+- primary CTA: generate debrief
+
+#### `debrief_ready`
+The debrief artifact has been generated.
+
+Expected UI behavior:
+- Review is available
+- Coach is now unlocked
+- user can inspect fracture map, weaknesses, and next drill
+- primary CTA: open coach or start another practice iteration
+
+#### `completed`
+The user has reviewed the debrief and the session is considered complete.
+
+Expected UI behavior:
+- all sub-screens are accessible
+- session can be revisited from history
+- user can duplicate or retry the session
+
+---
+
+## Sub-State Suggestions
+
+In addition to the session lifecycle state, each major artifact can have its own status.
+
+### Brief status
+Possible values:
+- `not_started`
+- `in_progress`
+- `complete`
+
+### Pitch status
+Possible values:
+- `not_started`
+- `recording`
+- `processing`
+- `complete`
+- `failed`
+
+### Q&A status
+Possible values:
+- `locked`
+- `ready`
+- `live`
+- `processing`
+- `complete`
+- `failed`
+
+### Debrief status
+Possible values:
+- `locked`
+- `ready`
+- `generating`
+- `complete`
+- `failed`
+
+### Coach status
+Possible values:
+- `locked`
+- `ready`
+- `active`
+
+These sub-states can drive loading indicators, empty states, disabled buttons, and recovery behavior.
+
+---
+
+## Required Transition Conditions
+
+### Transition: `draft` → `brief_ready`
+Trigger:
+- required Brief fields have been completed
+
+Minimum condition:
+- Project Context is sufficiently filled
+- Hackathon Context is sufficiently filled
+
+UI result:
+- Room / Pitch becomes available
+- primary CTA changes to record pitch
+
+### Transition: `brief_ready` → `pitch_recorded`
+Trigger:
+- user completes the pitch recording flow successfully
+
+Minimum condition:
+- pitch artifact is saved
+- recording metadata exists
+
+UI result:
+- Room / Q&A becomes unlocked
+- primary CTA changes to start Q&A
+
+### Transition: `pitch_recorded` → `qa_completed`
+Trigger:
+- Q&A session ends successfully
+
+Minimum condition:
+- enough turn data / transcript data exists
+- session is finalized
+
+UI result:
+- Debrief / Review becomes available for generation
+- primary CTA changes to generate review
+
+### Transition: `qa_completed` → `debrief_ready`
+Trigger:
+- debrief generation succeeds
+
+Minimum condition:
+- review artifact exists
+
+UI result:
+- Review becomes accessible
+- Coach becomes unlocked
+- primary CTA changes to open coach or review findings
+
+### Transition: `debrief_ready` → `completed`
+Trigger:
+- user has entered the debrief and session is marked finalized
+
+Minimum condition:
+- debrief exists
+- session is no longer actively in rehearsal
+
+UI result:
+- session is stored in history as completed
+- user can revisit or duplicate it
+
+---
+
+## Failure and Recovery States
+
+The app should support graceful recovery rather than forcing the user to restart.
+
+### Brief recovery
+If the Brief is incomplete:
+- keep the user in Brief
+- clearly show what is missing
+- disable forward progression
+- preserve partial input
+
+### Pitch recovery
+If recording fails:
+- preserve session state
+- allow retry without losing the Brief
+- show a clear error state and retry CTA
+
+### Q&A recovery
+If the live Q&A flow is interrupted:
+- preserve completed artifacts
+- allow restart or resume logic depending on implementation constraints
+- do not delete the pitch artifact
+
+### Debrief recovery
+If debrief generation fails:
+- preserve pitch and Q&A artifacts
+- let the user retry generation
+- do not send the user backward into Room
+
+### Coach recovery
+If coach context fails to load:
+- preserve review access
+- show a degraded but functional fallback state
+- allow retry
+
+---
+
+## Completion Indicators
+
+The navigation should visually communicate completion and readiness.
+
+Suggested status indicators:
+- not started
+- in progress
+- complete
+- locked
+
+Examples:
+- Brief / Project Context = complete
+- Brief / Hackathon Context = complete
+- Room / Pitch = complete
+- Room / Q&A = in progress
+- Debrief / Review = locked
+
+This helps users understand where they are in the workflow without reading long explanations.
+
+---
+
+## Primary CTA Logic
+
+Each screen should have one dominant next-step action.
+
+Suggested primary CTA by state:
+
+- `draft` → `Save brief`
+- `brief_ready` → `Record pitch`
+- `pitch_recorded` → `Enter live room`
+- `qa_completed` → `Generate debrief`
+- `debrief_ready` → `Open coach`
+- `completed` → `Start next session`
+
+The CTA should always reflect the next best action, not a generic action.
+
+---
+
+## Recommended Default Entry Behavior
+
+When a user opens a session, the app should route them to the most relevant next unfinished step.
+
+Suggested logic:
+- if session is `draft`, open Brief
+- if session is `brief_ready`, open Room / Pitch
+- if session is `pitch_recorded`, open Room / Q&A
+- if session is `qa_completed`, open Debrief / Review
+- if session is `debrief_ready`, open Debrief / Review
+- if session is `completed`, open Debrief / Review by default
+
+This makes the app feel guided and state-aware rather than static.
+
+---
+
+## Product Intent Reminder
+
+The product should always reinforce one idea:
+
+This is not an open workspace. It is a guided rehearsal loop.
+
+The UX should continuously move the founder toward the next meaningful action:
+- prepare the story,
+- perform it,
+- get challenged,
+- understand what broke,
+- improve and try again.[page:211]
