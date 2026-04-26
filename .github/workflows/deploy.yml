@@ -24,7 +24,7 @@ jobs:
       BUCKET: ${{ vars.GCS_BUCKET_NAME }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Workload Identity Federation — no JSON keys checked into secrets.
       # See: https://github.com/google-github-actions/auth#setting-up-workload-identity-federation
