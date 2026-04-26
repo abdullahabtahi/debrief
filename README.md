@@ -45,7 +45,7 @@ and loads it directly into each judge's memory.
 They won't ask you to explain what you built.  
 They'll ask you to defend it.
 
-![Brief Screen — extracted project context loaded into judge memory](public/screenshots/brief.png)
+![Brief Screen — extracted project context loaded into judge memory](debrief-demo-room/public/screenshots/brief.png)
 
 ---
 
@@ -53,7 +53,7 @@ They'll ask you to defend it.
 
 You recorded your pitch. Now comes the part nobody prepared you for.
 
-![Meet Your Panel — three judges, ready](public/screenshots/judge-intro.png)
+![Meet Your Panel — three judges, ready](debrief-demo-room/public/screenshots/judge-intro.png)
 
 **Alex** (VC Partner, Andreessen · Series A) will probe your go-to-market.  
 **Dr. Morgan** (Domain Expert, Technical Advisor) will find the gap in your architecture.  
@@ -62,7 +62,7 @@ You recorded your pitch. Now comes the part nobody prepared you for.
 They speak. You answer. Live audio, real pressure.  
 The room knows when you're rambling.
 
-![Q&A Room — live session, founder on camera, judges listening](public/screenshots/coach.png)
+![Q&A Room — live session, founder on camera, judges listening](debrief-demo-room/public/screenshots/coach.png)
 
 ---
 
@@ -75,7 +75,7 @@ Not "good job on the energy."
 A verdict from each judge. A score. The exact moment each one stopped believing you —  
 and why.
 
-![Debrief — fracture map, per-judge scores, verdict](public/screenshots/debrief.png)
+![Debrief — fracture map, per-judge scores, verdict](debrief-demo-room/public/screenshots/debrief.png)
 
 Now you know what to fix before it counts.
 
