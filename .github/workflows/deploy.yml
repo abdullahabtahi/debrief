@@ -29,7 +29,7 @@ jobs:
       # Workload Identity Federation — no JSON keys checked into secrets.
       # See: https://github.com/google-github-actions/auth#setting-up-workload-identity-federation
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
