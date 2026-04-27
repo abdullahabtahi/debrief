@@ -247,11 +247,16 @@ export function QARoom({ sessionId }: QARoomProps) {
     if (connStatus !== 'live') return
     if (hasKickedOffRef.current) return
     hasKickedOffRef.current = true
+
+    // We must use sendTextContent (which uses sendClientContent with turnComplete: true)
+    // because the Vertex AI backend (used in production) requires explicit turn completion
+    // to trigger the model immediately. sendRealtimeInput works on the Gemini Developer API
+    // but fails to trigger a prompt turn on Vertex AI.
     setTimeout(() => {
-      sendRealtimeText('BEGIN_SESSION')
-      audioLog('BEGIN_SESSION sent via sendRealtimeInput')
+      sendTextContent('BEGIN_SESSION')
+      audioLog('BEGIN_SESSION sent via sendTextContent (Vertex AI compatibility)')
     }, 500)
-  }, [connStatus, sendRealtimeText])
+  }, [connStatus, sendTextContent])
 
   // ── End session flow ──────────────────────────────────────────────────
   const handleEndSessionConfirm = useCallback(async () => {
