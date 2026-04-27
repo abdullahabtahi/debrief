@@ -189,4 +189,4 @@ The session ends. The coaching doesn't.
 
 ---
 
-*Built for the Anthropic Claude Hackathon 2025.*
+*Built for the Anthropic Claude Opus 4.7 Hackathon 2026.*
