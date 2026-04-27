@@ -2,7 +2,8 @@
   {
     "origin": [
       "http://localhost:3000",
-      "https://demo-day-room-*.run.app"
+      "https://debrief-demo-room-6mphyfwoxa-uc.a.run.app",
+      "https://debrief-demo-room-1022027891460.us-central1.run.app"
     ],
     "method": ["GET", "PUT", "POST", "OPTIONS", "HEAD"],
     "responseHeader": [

@@ -20,6 +20,7 @@ interface UserPiPProps {
 
 export function UserPiP({ micLevel, isJudgeSpeaking, variant = 'pip' }: UserPiPProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const [granted, setGranted] = useState<'pending' | 'granted' | 'denied'>('pending')
 
   // Pacing: drive logic from MotionValue change events (no rAF / no extra mic).
@@ -81,11 +82,15 @@ export function UserPiP({ micLevel, isJudgeSpeaking, variant = 'pip' }: UserPiPP
 
   // Video-only capture — audio is handled by useAudioPipeline in the parent
   useEffect(() => {
-    let stream: MediaStream | null = null
+    let cancelled = false
     const requestCamera = async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        if (videoRef.current) videoRef.current.srcObject = stream
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop())
+          return
+        }
+        streamRef.current = stream
         setGranted('granted')
       } catch (err) {
         console.error('Camera access denied', err)
@@ -93,8 +98,21 @@ export function UserPiP({ micLevel, isJudgeSpeaking, variant = 'pip' }: UserPiPP
       }
     }
     requestCamera()
-    return () => { stream?.getTracks().forEach((t) => t.stop()) }
+    return () => {
+      cancelled = true
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+    }
   }, [])
+
+  // Attach the stream to the video element after it mounts (granted === 'granted').
+  // Doing this in the same effect as getUserMedia would race: <video> isn't rendered
+  // until `granted` flips, so videoRef.current is null when the stream first resolves.
+  useEffect(() => {
+    if (granted === 'granted' && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current
+    }
+  }, [granted])
 
   const warningLevel = continuousSpeakingMs > 45000 ? 'red' : continuousSpeakingMs > 30000 ? 'amber' : 'none'
   const progress = Math.min(continuousSpeakingMs / 45000, 1)
