@@ -141,9 +141,8 @@ export function PDFUploadZone({
 
   return (
     <div className="space-y-1">
-      <button
-        type="button"
-        onClick={() => state !== 'uploading' && inputRef.current?.click()}
+      <label
+        htmlFor={`pdf-upload-${fileType}`}
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
@@ -172,7 +171,7 @@ export function PDFUploadZone({
               ? 'Retry upload'
               : `${label} (PDF, max 20 MB)`}
         </span>
-      </button>
+      </label>
       {error && state !== 'error' && (
         <p className="text-xs text-red-500" role="alert">{error}</p>
       )}
@@ -187,10 +186,11 @@ export function PDFUploadZone({
       )}
       <input
         ref={inputRef}
+        id={`pdf-upload-${fileType}`}
         type="file"
         accept="application/pdf"
+        disabled={state === 'uploading'}
         className="sr-only"
-        aria-hidden="true"
         onChange={(e) => {
           const file = e.target.files?.[0]
           if (file) handleFile(file)
